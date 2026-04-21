@@ -1,17 +1,17 @@
 """
-Baseline inference script for the Data Cleaning OpenEnv environment.
-Uses the OpenAI client against all 3 tasks and reports scores.
+Baseline inference script for the OrgOS OpenEnv environment.
+Runs all three workflows (A / B / C) and reports scores.
 
 Required environment variables:
     API_BASE_URL   — LLM API endpoint (OpenAI-compatible)
-    MODEL_NAME     — model identifier
-    HF_TOKEN       — API key
+    MODEL_NAME     — model identifier (default: gpt-4o-mini)
+    HF_TOKEN       — API key for the LLM endpoint
     ENV_URL        — environment server URL (default: http://localhost:8000)
 
 STDOUT FORMAT (OpenEnv spec):
-    [START] task=<task_name> env=<benchmark> model=<model_name>
-    [STEP]  step=<n> action=<action_str> reward=<0.00> done=<true|false> error=<msg|null>
-    [END]   task=<task_name> score=<0.00> steps=<n>
+    [START] task=<workflow_name> env=orgos-openenv model=<model>
+    [STEP]  step=<n> action=<json> reward=<0.00> done=<true|false> error=<msg|null>
+    [END]   task=<workflow_name> score=<0.00> steps=<n>
 """
 
 import json
@@ -19,7 +19,8 @@ import os
 import re
 import sys
 import time
-from typing import List, Optional
+from typing import AsyncGenerator, Dict, List, Optional
+
 import httpx
 from openai import OpenAI
 
@@ -30,72 +31,86 @@ from openai import OpenAI
 API_BASE_URL = os.environ.get("API_BASE_URL", "https://api.openai.com/v1")
 MODEL_NAME   = os.environ.get("MODEL_NAME",   "gpt-4o-mini")
 HF_TOKEN     = os.environ.get("HF_TOKEN",     "")
-ENV_URL      = os.environ.get("ENV_URL",      "http://localhost:8000")
+ENV_URL      = os.environ.get("ENV_URL",       "http://localhost:8000")
 
 if not HF_TOKEN:
     print("[WARNING] HF_TOKEN is not set — LLM calls may fail.", file=sys.stderr)
 
-client = OpenAI(api_key=HF_TOKEN, base_url=API_BASE_URL)
+llm_client = OpenAI(api_key=HF_TOKEN or "sk-placeholder", base_url=API_BASE_URL)
 
-SYSTEM_PROMPT = """You are a data cleaning agent. You control a data cleaning environment
-through JSON actions. Each turn you receive an observation JSON describing the current state
-of a dataset (preview, missing counts, duplicate count, dtype issues, current score, etc.)
-and a task description.
+# ------------------------------------------------------------------
+# System prompt
+# ------------------------------------------------------------------
 
-Your job is to pick the single best action to improve the dataset quality.
+SYSTEM_PROMPT = """\
+You are OrgOS Agent — an enterprise workflow automation agent.
+You operate across four SaaS applications: Jira, Zendesk, Salesforce, and Workday.
 
-Respond ONLY with a valid JSON object — no markdown, no explanation, just the JSON.
+Each turn you receive a JSON observation with:
+  - workflow_goal    : the task you must complete
+  - pending_steps    : remaining steps in the workflow
+  - app_states       : current state of each app
+  - schema_hints     : field renames in effect this episode (e.g. {"jira.priority": "severity"})
+  - active_rules     : current SLA / approval thresholds
+  - message          : feedback from the last action
+  - current_score    : your cumulative score (0.001–0.999)
 
-Available operations and their required parameters:
+Respond ONLY with a valid JSON object — no markdown, no explanation.
 
-1. fill_missing
-   {"operation": "fill_missing", "column": "<col>", "params": {"strategy": "median|mean|mode|constant", "value": <only if constant>}}
+Action format:
+  {"app": "<app>", "operation": "<op>", "args": {...}}
 
-2. drop_duplicates
-   {"operation": "drop_duplicates"}
+Available apps and key operations:
+  jira:       get_issue, create_issue, update_status, set_priority, assign_owner,
+              add_label, link_zendesk_ticket, close_issue, list_issues
+  zendesk:    get_ticket, acknowledge_ticket, set_urgency, assign_agent,
+              escalate_to_jira, resolve_ticket, add_note, list_tickets
+  salesforce: get_account, list_accounts, update_deal_stage, flag_churn_risk,
+              assign_account_owner, log_interaction, get_opportunity
+  workday:    get_employee, list_employees, provision_access, log_sla_event,
+              request_budget_approval, create_onboarding_task, complete_task
 
-3. fix_format
-   {"operation": "fix_format", "column": "phone|listed_date|signup_date|country"}
+CRITICAL RULES:
+1. Read schema_hints FIRST — if "jira.priority" → "severity", use "severity" not "priority" in args.
+2. Complete ALL pending_steps in order.
+3. Do not repeat a successful action.
+4. If an operation fails, read the message carefully and adapt.
+5. Use list_* operations to discover record IDs when needed.
+6. Stop when pending_steps is empty or done=true.
 
-4. replace_value
-   {"operation": "replace_value", "column": "<col>", "params": {"old": "<val>", "new": "<val>"}}
-
-5. drop_outliers
-   {"operation": "drop_outliers", "column": "<numeric_col>"}
-
-6. fix_dtype
-   {"operation": "fix_dtype", "column": "<col>", "params": {"dtype": "float|int|str"}}
-
-Rules:
-- Address the highest-impact issues first (missing values > duplicates > outliers > format).
-- Do not repeat an operation that returned no effect (watch the 'message' field).
-- Stop when current_score >= 0.95.
+Example actions:
+  {"app": "zendesk", "operation": "acknowledge_ticket", "args": {"ticket_number": "ZD-001"}}
+  {"app": "jira", "operation": "create_issue", "args": {"title": "Bug fix for ACME-001", "linked_zendesk": "ZD-001"}}
+  {"app": "salesforce", "operation": "get_account", "args": {"account_id": "ACME-001"}}
+  {"app": "workday", "operation": "log_sla_event", "args": {"ticket_id": "ZD-001", "sla_met": true}}
 """
 
+WORKFLOW_NAMES = {
+    "A": "workflow-a-bug-fix",
+    "B": "workflow-b-onboarding",
+    "C": "workflow-c-churn-alert",
+}
 
 # ------------------------------------------------------------------
 # OpenEnv stdout logging helpers
 # ------------------------------------------------------------------
 
-def log_start(task: str, env: str, model: str) -> None:
-    print(f"[START] task={task} env={env} model={model}", flush=True)
+def log_start(task: str, env_name: str, model: str) -> None:
+    print(f"[START] task={task} env={env_name} model={model}", flush=True)
 
 
 def log_step(step: int, action: str, reward: float, done: bool, error: Optional[str]) -> None:
     error_val = error if error else "null"
-    done_val  = str(done).lower()
     print(
-        f"[STEP] step={step} action={action} reward={reward:.2f} done={done_val} error={error_val}",
+        f"[STEP] step={step} action={action} reward={reward:.4f} "
+        f"done={str(done).lower()} error={error_val}",
         flush=True,
     )
 
 
 def log_end(task_name: str, score: float, steps: int) -> None:
-    safe_score = max(0.01, min(0.99, float(score)))
-    print(
-        f"[END] task={task_name} score={safe_score:.4f} steps={steps}",
-        flush=True
-    )
+    safe_score = max(0.001, min(0.999, float(score)))
+    print(f"[END] task={task_name} score={safe_score:.4f} steps={steps}", flush=True)
 
 
 # ------------------------------------------------------------------
@@ -117,60 +132,80 @@ def api_get(path: str) -> dict:
 
 
 # ------------------------------------------------------------------
-# Agent loop
+# Observation formatter
 # ------------------------------------------------------------------
 
 def obs_to_text(obs: dict) -> str:
     lines = [
-        f"current_score: {obs['current_score']}",
-        f"step_count:    {obs['step_count']}",
-        f"data_shape:    {obs['data_shape']}",
-        f"duplicate_count: {obs['duplicate_count']}",
-        f"missing_counts: {json.dumps(obs['missing_counts'])}",
-        f"dtype_issues:   {json.dumps(obs['dtype_issues'])}",
-        f"message:        {obs['message']}",
+        f"current_score:  {obs['current_score']}",
+        f"step_count:     {obs['step_count']}",
+        f"workflow_id:    {obs['workflow_id']}",
         "",
-        "=== DATA PREVIEW (first 10 rows) ===",
-        obs["data_preview"],
+        "=== WORKFLOW GOAL ===",
+        obs["workflow_goal"],
         "",
-        "=== TASK DESCRIPTION ===",
-        obs["task_description"],
+        "=== PENDING STEPS ===",
+        "\n".join(f"  - {s}" for s in obs["pending_steps"]) or "  (all steps complete!)",
+        "",
+        "=== SCHEMA HINTS (use these field names) ===",
+        json.dumps(obs["schema_hints"], indent=2) if obs["schema_hints"] else "  (no drift — use canonical names)",
+        "",
+        "=== ACTIVE RULES ===",
+        json.dumps(obs["active_rules"], indent=2),
+        "",
+        "=== LAST MESSAGE ===",
+        obs["message"],
+        "",
+        "=== APP STATES ===",
     ]
+    for app_name, view in obs.get("app_states", {}).items():
+        lines.append(f"  [{app_name.upper()}]")
+        lines.append(f"  {view}")
+        lines.append("")
+    if obs.get("rule_violations"):
+        lines.append("=== RULE VIOLATIONS (fix these!) ===")
+        for v in obs["rule_violations"]:
+            lines.append(f"  ⚠  {v}")
+        lines.append("")
     return "\n".join(lines)
 
 
-def run_task(task_id: int) -> float:
-    task_name = f"data-cleaning-task{task_id}"
+# ------------------------------------------------------------------
+# Single-workflow inference loop
+# ------------------------------------------------------------------
 
-    # Human-readable header (stderr so it doesn't interfere with stdout format)
+def run_workflow(workflow_id: str) -> float:
+    task_name = WORKFLOW_NAMES.get(workflow_id, f"workflow-{workflow_id.lower()}")
+
     print(f"\n{'='*60}", file=sys.stderr)
-    print(f"  Running Task {task_id}", file=sys.stderr)
+    print(f"  Running Workflow {workflow_id}", file=sys.stderr)
     print(f"{'='*60}", file=sys.stderr)
 
-    result  = api_post("/reset", {"task_id": task_id})
+    result  = api_post("/reset", {"workflow_id": workflow_id})
     obs     = result["observation"]
-    history = []
-    rewards: List[float] = []
+    history: List[dict] = []
     steps_taken = 0
-    success = False
 
-    log_start(task=task_name, env="data-cleaning-openenv", model=MODEL_NAME)
+    log_start(task=task_name, env_name="orgos-openenv", model=MODEL_NAME)
 
     try:
-        for step_num in range(1, 50):
+        for step_num in range(1, 60):
             if obs["done"]:
-                success = obs["current_score"] >= 0.95
                 break
 
             obs_text = obs_to_text(obs)
             history.append({"role": "user", "content": obs_text})
 
+            # Trim history to avoid context overflow
+            if len(history) > 20:
+                history = history[-20:]
+
             try:
-                response = client.chat.completions.create(
+                response = llm_client.chat.completions.create(
                     model       = MODEL_NAME,
                     messages    = [{"role": "system", "content": SYSTEM_PROMPT}] + history,
                     temperature = 0.0,
-                    max_tokens  = 256,
+                    max_tokens  = 300,
                 )
                 action_str = response.choices[0].message.content.strip()
             except Exception as exc:
@@ -193,13 +228,13 @@ def run_task(task_id: int) -> float:
                         pass
 
             if action is None:
-                print(f"  Step {step_num}: Could not parse action JSON, skipping.", file=sys.stderr)
+                print(f"  Step {step_num}: Could not parse action JSON.", file=sys.stderr)
                 log_step(step_num, action_str, -0.05, False, "json_parse_error")
                 break
 
             action_label = json.dumps(action, separators=(",", ":"))
             print(
-                f"  Step {step_num:2d} | score={obs['current_score']:.4f} | action={action_label}",
+                f"  Step {step_num:2d} | score={obs['current_score']:.4f} | {action_label}",
                 file=sys.stderr,
             )
 
@@ -207,13 +242,15 @@ def run_task(task_id: int) -> float:
             obs         = result["observation"]
             step_reward = result["reward"]
             done        = result["done"]
-            error_msg   = None if obs["message"].startswith("Fill") or step_reward >= 0 else obs["message"]
+            error_msg   = (
+                obs["message"]
+                if obs.get("rule_violations") or step_reward < 0
+                else None
+            )
 
-            print(f"           -> {obs['message']}", file=sys.stderr)
+            print(f"           → {obs['message']}", file=sys.stderr)
 
-            rewards.append(step_reward)
             steps_taken = step_num
-
             log_step(
                 step   = step_num,
                 action = action_label,
@@ -223,49 +260,161 @@ def run_task(task_id: int) -> float:
             )
 
             if done:
-                success = obs["current_score"] >= 0.95
                 break
 
-            time.sleep(0.3)
+            time.sleep(0.2)
 
     finally:
-        final = obs.get("current_score", 0.01) if isinstance(obs, dict) else 0.01
+        final = obs.get("current_score", 0.001) if isinstance(obs, dict) else 0.001
         log_end(task_name=task_name, score=final, steps=steps_taken)
 
     final_score = obs["current_score"]
+    wf_done     = not obs.get("pending_steps")
     print(
-        f"\n  Task {task_id} final score: {final_score:.4f}  (steps used: {obs['step_count']})",
+        f"\n  Workflow {workflow_id} final score: {final_score:.4f}  "
+        f"steps: {obs['step_count']}  completed: {wf_done}",
         file=sys.stderr,
     )
     return final_score
 
 
 # ------------------------------------------------------------------
-# Main
+# Async generator for SSE streaming from the UI
+# ------------------------------------------------------------------
+
+async def run_workflow_generator(
+    workflow_id: str = "A",
+    env_ref=None,
+) -> AsyncGenerator[dict, None]:
+    """
+    Async generator that runs one inference episode and yields
+    SSE-friendly event dicts for the dashboard UI.
+
+    Each yielded dict has a "type" key:
+      "reset"  — episode started
+      "step"   — one action taken
+      "done"   — episode ended
+      "error"  — something went wrong
+    """
+    import asyncio
+
+    if env_ref is None:
+        # Fall back to HTTP if no direct env reference
+        result = api_post("/reset", {"workflow_id": workflow_id})
+    else:
+        from models import OrgOSAction as _Action
+        obs_obj = env_ref.reset(workflow_id=workflow_id)
+        result  = {"observation": obs_obj.model_dump(), "reward": obs_obj.reward, "done": False}
+
+    obs     = result["observation"]
+    history: List[dict] = []
+
+    yield {"type": "reset", "observation": obs, "workflow_id": workflow_id}
+    await asyncio.sleep(0)
+
+    for step_num in range(1, 60):
+        if obs["done"]:
+            break
+
+        obs_text = obs_to_text(obs)
+        history.append({"role": "user", "content": obs_text})
+        if len(history) > 20:
+            history = history[-20:]
+
+        try:
+            response = llm_client.chat.completions.create(
+                model       = MODEL_NAME,
+                messages    = [{"role": "system", "content": SYSTEM_PROMPT}] + history,
+                temperature = 0.0,
+                max_tokens  = 300,
+            )
+            action_str = response.choices[0].message.content.strip()
+        except Exception as exc:
+            yield {"type": "error", "step": step_num, "message": str(exc)}
+            break
+
+        history.append({"role": "assistant", "content": action_str})
+
+        action = None
+        try:
+            action = json.loads(action_str)
+        except json.JSONDecodeError:
+            m = re.search(r"\{.*\}", action_str, re.DOTALL)
+            if m:
+                try:
+                    action = json.loads(m.group())
+                except Exception:
+                    pass
+
+        if action is None:
+            yield {"type": "error", "step": step_num, "message": "JSON parse error"}
+            break
+
+        if env_ref is None:
+            result = api_post("/step", action)
+        else:
+            from models import OrgOSAction as _Action
+            try:
+                act     = _Action(**action)
+                obs_obj = env_ref.step(act)
+                result  = {
+                    "observation": obs_obj.model_dump(),
+                    "reward":      obs_obj.reward,
+                    "done":        obs_obj.done,
+                }
+            except Exception as exc:
+                yield {"type": "error", "step": step_num, "message": str(exc)}
+                break
+
+        obs         = result["observation"]
+        step_reward = result["reward"]
+        done        = result["done"]
+
+        yield {
+            "type":        "step",
+            "step":        step_num,
+            "action":      action,
+            "observation": obs,
+            "reward":      step_reward,
+            "done":        done,
+        }
+        await asyncio.sleep(0)
+
+        if done:
+            break
+
+    yield {
+        "type":        "done",
+        "final_score": obs.get("current_score", 0.001),
+        "steps":       obs.get("step_count", step_num),
+        "completed":   not obs.get("pending_steps"),
+    }
+
+
+# ------------------------------------------------------------------
+# Main — run all three workflows sequentially
 # ------------------------------------------------------------------
 
 def main():
-    print("Data Cleaning OpenEnv -- Baseline Inference", file=sys.stderr)
+    print("OrgOS OpenEnv — Baseline Inference", file=sys.stderr)
     print(f"Model : {MODEL_NAME}", file=sys.stderr)
     print(f"Env   : {ENV_URL}", file=sys.stderr)
 
-    # Smoke-test health endpoint
     try:
         health = api_get("/health")
         assert health.get("status") in ("ok", "healthy"), f"Unexpected status: {health}"
         print("Health check: OK\n", file=sys.stderr)
     except Exception as exc:
         print(f"[ERROR] Environment not reachable at {ENV_URL}: {exc}", file=sys.stderr)
-        print("[ERROR] Make sure the server is running and ENV_URL is correct.", file=sys.stderr)
         sys.exit(1)
 
-    scores = {}
-    for task_id in [1, 2, 3]:
+    scores: Dict[str, float] = {}
+    for wf_id in ["A", "B", "C"]:
         try:
-            scores[f"task{task_id}"] = run_task(task_id)
+            scores[f"workflow_{wf_id}"] = run_workflow(wf_id)
         except Exception as exc:
-            print(f"[ERROR] Task {task_id} failed: {exc}", file=sys.stderr)
-            scores[f"task{task_id}"] = 0.01
+            print(f"[ERROR] Workflow {wf_id} failed: {exc}", file=sys.stderr)
+            scores[f"workflow_{wf_id}"] = 0.001
 
     print("\n" + "="*60, file=sys.stderr)
     print("  BASELINE RESULTS", file=sys.stderr)
@@ -276,7 +425,6 @@ def main():
     print(f"  average: {avg:.4f}", file=sys.stderr)
     print("="*60, file=sys.stderr)
 
-    # Write scores to file for automated validators
     with open("baseline_scores.json", "w") as f:
         json.dump({"scores": scores, "average": avg}, f, indent=2)
     print("\nScores written to baseline_scores.json", file=sys.stderr)

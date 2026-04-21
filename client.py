@@ -1,102 +1,108 @@
 """
-Synchronous HTTP client for the Data Cleaning OpenEnv environment.
+Synchronous HTTP client for the OrgOS OpenEnv environment.
 
 Usage
 -----
-    from client import DataCleaningEnvClient, DataCleaningAction
+    from client import OrgOSEnvClient
+    from models import OrgOSAction
 
-    client = DataCleaningEnvClient(base_url="http://localhost:8000")
+    client = OrgOSEnvClient(base_url="http://localhost:8000")
 
-    # Start a new episode (task_id 1/2/3 or omit for round-robin)
-    result = client.reset(task_id=1)
-    print(result.observation.task_description)
+    # Start a new episode (workflow_id "A"/"B"/"C" or None for round-robin)
+    result = client.reset(workflow_id="A")
+    print(result.observation.workflow_goal)
 
     # Take a step
-    action = DataCleaningAction(
-        operation="fill_missing",
-        column="salary",
-        params={"strategy": "median"},
+    action = OrgOSAction(
+        app="zendesk",
+        operation="acknowledge_ticket",
+        args={"ticket_number": "ZD-001"},
     )
     result = client.step(action)
     print(result.observation.current_score, result.reward, result.done)
 
     # Inspect state
     state = client.state()
-    print(state.episode_id, state.errors_remaining)
+    print(state.episode_id, state.workflow_completion)
 """
 
 from typing import Optional
 import httpx
 from pydantic import BaseModel
 
-from models import DataCleaningAction, DataCleaningObservation, DataCleaningState
+from models import OrgOSAction, OrgOSObservation, OrgOSState
 
 
 class StepResult(BaseModel):
     """Returned by reset() and step()."""
-    observation: DataCleaningObservation
+    observation: OrgOSObservation
     reward: float
     done: bool
     info: dict = {}
 
 
-class DataCleaningEnvClient:
+class OrgOSEnvClient:
     """
-    Thin synchronous wrapper around the DataCleaning HTTP API.
+    Thin synchronous wrapper around the OrgOS HTTP API.
 
     All methods raise httpx.HTTPStatusError on non-2xx responses.
     """
 
     def __init__(self, base_url: str = "http://localhost:8000", timeout: float = 30.0):
-        self.base_url = base_url.rstrip("/")
+        self.base_url  = base_url.rstrip("/")
         self._client   = httpx.Client(base_url=self.base_url, timeout=timeout)
 
     # ------------------------------------------------------------------
     # Core API
     # ------------------------------------------------------------------
 
-    def reset(self, task_id: Optional[int] = None) -> StepResult:
+    def reset(self, workflow_id: Optional[str] = None) -> StepResult:
         """
         Start a new episode.
 
         Parameters
         ----------
-        task_id : int | None
-            1 = Easy   (fill missing values)
-            2 = Medium (fix formats + duplicates)
-            3 = Hard   (full pipeline)
-            None = round-robin (1 → 2 → 3 → 1 …)
+        workflow_id : str | None
+            "A" = Customer Bug Fix  (support role)
+            "B" = Employee Onboarding  (manager role)
+            "C" = Churn Risk Alert  (support role)
+            None = round-robin (A → B → C → A …)
         """
-        payload = {"task_id": task_id} if task_id is not None else {}
+        payload = {"workflow_id": workflow_id} if workflow_id is not None else {}
         resp    = self._client.post("/reset", json=payload)
         resp.raise_for_status()
         return StepResult(**resp.json())
 
-    def step(self, action: DataCleaningAction) -> StepResult:
+    def step(self, action: OrgOSAction) -> StepResult:
         """
-        Apply one cleaning operation and return the updated observation.
+        Take one action in the environment.
 
         Parameters
         ----------
-        action : DataCleaningAction
-            operation : str   – one of fill_missing / drop_duplicates /
-                                fix_format / replace_value / drop_outliers / fix_dtype
-            column    : str   – target column (optional for drop_duplicates)
-            params    : dict  – operation-specific parameters
+        action : OrgOSAction
+            app       : str   – "jira" | "zendesk" | "salesforce" | "workday"
+            operation : str   – app-specific operation name
+            args      : dict  – operation arguments
         """
         resp = self._client.post("/step", json=action.model_dump())
         resp.raise_for_status()
         return StepResult(**resp.json())
 
-    def state(self) -> DataCleaningState:
+    def state(self) -> OrgOSState:
         """Return current episode metadata without modifying state."""
         resp = self._client.get("/state")
         resp.raise_for_status()
-        return DataCleaningState(**resp.json())
+        return OrgOSState(**resp.json())
 
     def health(self) -> dict:
-        """Ping the server. Returns {"status": "ok"} if healthy."""
+        """Ping the server. Returns {"status": "healthy"} if healthy."""
         resp = self._client.get("/health")
+        resp.raise_for_status()
+        return resp.json()
+
+    def app_schemas(self) -> dict:
+        """Return per-app operation catalogue."""
+        resp = self._client.get("/schema/apps")
         resp.raise_for_status()
         return resp.json()
 

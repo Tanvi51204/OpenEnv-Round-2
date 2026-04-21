@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en" x-data="orgos()" x-init="init()">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OrgOS — Multi-App Enterprise RL Environment</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    [x-cloak] { display: none !important; }
+
+    body { font-family: 'JetBrains Mono', 'Fira Code', monospace; }
+
+    .app-tab.active { @apply border-b-2; }
+    .step-done   { color: #22c55e; }
+    .step-active { color: #fbbf24; }
+    .step-pending{ color: #475569; }
+
+    /* Scrollbar styling */
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: #1e293b; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 2px; }
+
+    /* Log entry fade-in */
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; } }
+    .log-entry { animation: fadeIn 0.2s ease; }
+
+    /* Score pulse when updating */
+    @keyframes scorePulse {
+      0%, 100% { color: #38bdf8; }
+      50%       { color: #7dd3fc; }
+    }
+    .score-updated { animation: scorePulse 0.4s ease; }
+  </style>
+</head>
+
+<body class="bg-slate-950 text-slate-300 min-h-screen">
+
+  <!-- ================================================================
+       TOP BAR
+       ================================================================ -->
+  <header class="bg-slate-900 border-b border-slate-800 px-4 py-3 flex items-center gap-4">
+    <!-- Logo -->
+    <div class="flex items-center gap-2 mr-4">
+      <div class="w-7 h-7 rounded bg-sky-500 flex items-center justify-center text-white font-bold text-sm">O</div>
+      <span class="text-white font-semibold text-sm tracking-wide">OrgOS</span>
+      <span class="text-slate-500 text-xs">Enterprise RL Environment</span>
+    </div>
+
+    <!-- Workflow selector -->
+    <div class="flex items-center gap-2">
+      <label class="text-xs text-slate-500 uppercase tracking-widest">Workflow</label>
+      <select x-model="selectedWorkflow"
+              class="bg-slate-800 border border-slate-700 text-slate-200 text-xs rounded px-2 py-1 focus:outline-none focus:border-sky-500">
+        <option value="A">A — Customer Bug Fix</option>
+        <option value="B">B — Employee Onboarding</option>
+        <option value="C">C — Churn Risk Alert</option>
+      </select>
+    </div>
+
+    <!-- Run / Stop button -->
+    <button @click="isRunning ? stopAgent() : startAgent()"
+            :class="isRunning
+              ? 'bg-red-600 hover:bg-red-500 text-white'
+              : 'bg-sky-600 hover:bg-sky-500 text-white'"
+            class="px-3 py-1.5 rounded text-xs font-medium transition-colors flex items-center gap-1.5">
+      <svg x-show="!isRunning" xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="currentColor" viewBox="0 0 16 16">
+        <path d="M11.596 8.697l-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z"/>
+      </svg>
+      <svg x-show="isRunning" xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="currentColor" viewBox="0 0 16 16">
+        <path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5zm5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5z"/>
+      </svg>
+      <span x-text="isRunning ? 'Stop' : 'Run Agent'"></span>
+    </button>
+
+    <!-- Reset button -->
+    <button @click="resetEpisode()"
+            :disabled="isRunning"
+            class="px-3 py-1.5 rounded text-xs font-medium bg-slate-700 hover:bg-slate-600 text-slate-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+      Reset
+    </button>
+
+    <!-- Status indicators -->
+    <div class="ml-auto flex items-center gap-4">
+      <!-- Score -->
+      <div class="text-right">
+        <div class="text-xs text-slate-500 uppercase tracking-widest">Score</div>
+        <div class="text-sky-400 font-bold text-base tabular-nums"
+             :class="scoreUpdated ? 'score-updated' : ''"
+             x-text="currentScore.toFixed(4)"></div>
+      </div>
+      <!-- Steps -->
+      <div class="text-right">
+        <div class="text-xs text-slate-500 uppercase tracking-widest">Step</div>
+        <div class="text-slate-200 font-bold text-base tabular-nums"
+             x-text="stepCount + ' / ' + maxSteps"></div>
+      </div>
+      <!-- Policy drift badge -->
+      <div x-show="policyDriftActive"
+           class="px-2 py-0.5 rounded-full text-xs bg-amber-900 text-amber-300 border border-amber-700">
+        Policy Drift
+      </div>
+      <!-- Health dot -->
+      <div class="flex items-center gap-1.5">
+        <div class="w-2 h-2 rounded-full"
+             :class="serverHealthy ? 'bg-green-500' : 'bg-red-500'"></div>
+        <span class="text-xs text-slate-500" x-text="serverHealthy ? 'Live' : 'Offline'"></span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ================================================================
+       MAIN LAYOUT  (3-column)
+       ================================================================ -->
+  <div class="flex h-[calc(100vh-52px)]">
+
+    <!-- ============================================================
+         LEFT: Workflow Progress + Schema Hints + Rules
+         ============================================================ -->
+    <aside class="w-72 flex-shrink-0 bg-slate-900 border-r border-slate-800 flex flex-col overflow-hidden">
+
+      <!-- Workflow goal -->
+      <div class="px-4 pt-4 pb-3 border-b border-slate-800">
+        <div class="text-xs text-slate-500 uppercase tracking-widest mb-1">Goal</div>
+        <p class="text-slate-300 text-xs leading-relaxed" x-text="workflowGoal || 'Reset to start an episode.'"></p>
+      </div>
+
+      <!-- Step tracker -->
+      <div class="px-4 pt-3 pb-2 border-b border-slate-800 flex-shrink-0">
+        <div class="text-xs text-slate-500 uppercase tracking-widest mb-2">
+          Workflow Steps
+          <span class="ml-1 text-sky-400 font-bold"
+                x-text="'(' + completedSteps.length + '/' + totalSteps + ')'"></span>
+        </div>
+        <template x-for="(step, i) in allSteps" :key="i">
+          <div class="flex items-start gap-2 py-1">
+            <!-- Icon -->
+            <div class="mt-0.5 w-4 h-4 flex-shrink-0">
+              <template x-if="completedSteps.includes(step.id)">
+                <svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                </svg>
+              </template>
+              <template x-if="!completedSteps.includes(step.id)">
+                <div class="w-4 h-4 rounded-full border border-slate-600 flex items-center justify-center">
+                  <span class="text-[9px] text-slate-500" x-text="step.id"></span>
+                </div>
+              </template>
+            </div>
+            <!-- Description -->
+            <span class="text-xs leading-tight"
+                  :class="completedSteps.includes(step.id)
+                    ? 'text-green-400 line-through decoration-green-600'
+                    : 'text-slate-400'"
+                  x-text="step.description"></span>
+          </div>
+        </template>
+      </div>
+
+      <!-- Schema hints -->
+      <div class="px-4 pt-3 pb-3 border-b border-slate-800 flex-shrink-0">
+        <div class="text-xs text-slate-500 uppercase tracking-widest mb-2">Schema Hints</div>
+        <template x-if="Object.keys(schemaHints).length === 0">
+          <p class="text-xs text-slate-600">No drift — canonical names in effect.</p>
+        </template>
+        <template x-for="[field, drifted] in Object.entries(schemaHints)" :key="field">
+          <div class="flex items-center gap-1 py-0.5 font-mono text-[11px]">
+            <span class="text-red-400 line-through" x-text="field.split('.')[1] ?? field"></span>
+            <span class="text-slate-600">→</span>
+            <span class="text-green-400" x-text="drifted"></span>
+            <span class="text-slate-600 text-[10px]" x-text="'(' + (field.split('.')[0] ?? '') + ')'"></span>
+          </div>
+        </template>
+      </div>
+
+      <!-- Active rules -->
+      <div class="px-4 pt-3 pb-3 flex-shrink-0">
+        <div class="text-xs text-slate-500 uppercase tracking-widest mb-2">Active Rules</div>
+        <template x-for="[key, val] in Object.entries(activeRules)" :key="key">
+          <div class="flex justify-between py-0.5 text-[11px]">
+            <span class="text-slate-500" x-text="key.replace(/_/g,' ')"></span>
+            <span class="text-slate-300 font-bold tabular-nums" x-text="val"></span>
+          </div>
+        </template>
+      </div>
+    </aside>
+
+    <!-- ============================================================
+         CENTER: App State Tabs + Agent Log
+         ============================================================ -->
+    <main class="flex-1 flex flex-col overflow-hidden min-w-0">
+
+      <!-- App state tabs -->
+      <div class="bg-slate-900 border-b border-slate-800 flex-shrink-0">
+        <!-- Tab headers -->
+        <div class="flex">
+          <template x-for="tab in appTabs" :key="tab.id">
+            <button @click="activeAppTab = tab.id"
+                    :class="activeAppTab === tab.id
+                      ? 'border-b-2 border-sky-500 text-sky-400 bg-slate-950'
+                      : 'text-slate-500 hover:text-slate-300'"
+                    class="px-4 py-2 text-xs font-medium transition-colors flex items-center gap-1.5">
+              <span x-text="tab.icon"></span>
+              <span x-text="tab.label"></span>
+              <!-- Open items badge -->
+              <template x-if="appOpenCounts[tab.id] > 0">
+                <span class="px-1.5 py-0.5 rounded-full text-[10px] font-bold"
+                      :class="activeAppTab === tab.id ? 'bg-sky-900 text-sky-300' : 'bg-slate-700 text-slate-400'"
+                      x-text="appOpenCounts[tab.id]"></span>
+              </template>
+            </button>
+          </template>
+        </div>
+        <!-- Tab content -->
+        <div class="p-3 max-h-48 overflow-y-auto">
+          <template x-for="tab in appTabs" :key="tab.id">
+            <pre x-show="activeAppTab === tab.id"
+                 class="text-[11px] font-mono text-slate-300 whitespace-pre-wrap leading-relaxed"
+                 x-text="appStates[tab.id] || 'No data yet — reset to load.'"></pre>
+          </template>
+        </div>
+      </div>
+
+      <!-- Agent action log -->
+      <div class="flex-1 overflow-hidden flex flex-col">
+        <div class="px-4 py-2 border-b border-slate-800 flex items-center justify-between bg-slate-900 flex-shrink-0">
+          <span class="text-xs text-slate-500 uppercase tracking-widest">Agent Log</span>
+          <button @click="actionLog = []" class="text-xs text-slate-600 hover:text-slate-400">Clear</button>
+        </div>
+        <div class="flex-1 overflow-y-auto px-4 py-3 space-y-1.5" id="log-scroll">
+          <template x-if="actionLog.length === 0">
+            <p class="text-slate-600 text-xs italic">Waiting for episode to start…</p>
+          </template>
+          <template x-for="(entry, i) in actionLog" :key="i">
+            <div class="log-entry flex gap-3 items-start text-xs font-mono py-1 border-b border-slate-800/50">
+              <!-- Step number -->
+              <span class="text-slate-600 w-8 text-right flex-shrink-0" x-text="'#' + entry.step"></span>
+              <!-- Color dot -->
+              <span class="w-2 h-2 rounded-full flex-shrink-0 mt-0.5"
+                    :class="{
+                      'bg-green-500':  entry.type === 'success',
+                      'bg-red-500':    entry.type === 'error',
+                      'bg-amber-500':  entry.type === 'warning',
+                      'bg-sky-500':    entry.type === 'info',
+                      'bg-slate-500':  entry.type === 'reset',
+                    }"></span>
+              <!-- Content -->
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <template x-if="entry.app">
+                    <span class="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase"
+                          :class="{
+                            'bg-violet-900 text-violet-300':  entry.app === 'jira',
+                            'bg-emerald-900 text-emerald-300': entry.app === 'zendesk',
+                            'bg-blue-900 text-blue-300':      entry.app === 'salesforce',
+                            'bg-orange-900 text-orange-300':  entry.app === 'workday',
+                          }"
+                          x-text="entry.app"></span>
+                  </template>
+                  <template x-if="entry.operation">
+                    <span class="text-sky-400" x-text="entry.operation"></span>
+                  </template>
+                  <template x-if="entry.reward !== undefined">
+                    <span :class="entry.reward >= 0 ? 'text-green-400' : 'text-red-400'"
+                          x-text="(entry.reward >= 0 ? '+' : '') + entry.reward.toFixed(4)"></span>
+                  </template>
+                </div>
+                <div class="text-slate-400 text-[11px] mt-0.5 leading-snug" x-text="entry.message"></div>
+                <template x-if="entry.argsStr">
+                  <div class="text-slate-600 text-[10px] mt-0.5 truncate" x-text="entry.argsStr"></div>
+                </template>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+    </main>
+
+    <!-- ============================================================
+         RIGHT: Metrics Panel
+         ============================================================ -->
+    <aside class="w-64 flex-shrink-0 bg-slate-900 border-l border-slate-800 flex flex-col overflow-hidden">
+
+      <!-- Reward curve chart -->
+      <div class="p-4 border-b border-slate-800">
+        <div class="text-xs text-slate-500 uppercase tracking-widest mb-2">Reward Curve</div>
+        <canvas id="rewardChart" class="w-full" style="max-height:120px"></canvas>
+      </div>
+
+      <!-- Score breakdown bars -->
+      <div class="p-4 border-b border-slate-800">
+        <div class="text-xs text-slate-500 uppercase tracking-widest mb-3">Score Breakdown</div>
+        <template x-for="comp in rewardComponents" :key="comp.key">
+          <div class="mb-2">
+            <div class="flex justify-between text-[11px] mb-0.5">
+              <span class="text-slate-500" x-text="comp.label"></span>
+              <span class="text-slate-300 tabular-nums" x-text="(comp.value * 100).toFixed(0) + '%'"></span>
+            </div>
+            <div class="w-full bg-slate-800 rounded-full h-1.5">
+              <div class="h-1.5 rounded-full transition-all duration-300"
+                   :class="comp.color"
+                   :style="'width: ' + (comp.value * 100) + '%'"></div>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <!-- Episode stats -->
+      <div class="p-4 border-b border-slate-800">
+        <div class="text-xs text-slate-500 uppercase tracking-widest mb-2">Episode Stats</div>
+        <div class="space-y-1">
+          <div class="flex justify-between text-[11px]">
+            <span class="text-slate-500">Violations</span>
+            <span :class="violationCount > 0 ? 'text-red-400' : 'text-green-400'"
+                  x-text="violationCount" class="font-bold tabular-nums"></span>
+          </div>
+          <div class="flex justify-between text-[11px]">
+            <span class="text-slate-500">Schema boosts</span>
+            <span class="text-green-400 font-bold tabular-nums" x-text="schemaAdaptCount"></span>
+          </div>
+          <div class="flex justify-between text-[11px]">
+            <span class="text-slate-500">Schema errors</span>
+            <span :class="schemaErrorCount > 0 ? 'text-red-400' : 'text-slate-600'"
+                  x-text="schemaErrorCount" class="font-bold tabular-nums"></span>
+          </div>
+          <div class="flex justify-between text-[11px]">
+            <span class="text-slate-500">Workflow ID</span>
+            <span class="text-sky-400 font-bold" x-text="workflowId || '—'"></span>
+          </div>
+          <div class="flex justify-between text-[11px]">
+            <span class="text-slate-500">Schema versions</span>
+            <template x-for="[app, ver] in Object.entries(schemaVersions)" :key="app">
+              <span class="text-slate-300 text-[10px] tabular-nums"
+                    x-text="app[0].toUpperCase() + ':' + ver"></span>
+            </template>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent violations -->
+      <div class="p-4 flex-1 overflow-y-auto">
+        <div class="text-xs text-slate-500 uppercase tracking-widest mb-2">Violations</div>
+        <template x-if="violations.length === 0">
+          <p class="text-slate-600 text-xs italic">None this episode.</p>
+        </template>
+        <template x-for="(v, i) in violations.slice(-8)" :key="i">
+          <div class="text-[10px] text-red-400 py-0.5 border-b border-slate-800/50 leading-snug"
+               x-text="v"></div>
+        </template>
+      </div>
+    </aside>
+
+  </div><!-- end main layout -->
+
+  <!-- ================================================================
+       ALPINE.JS + CHART.JS LOGIC
+       ================================================================ -->
+  <script>
+  function orgos() {
+    return {
+      // ---- Config ----
+      envUrl: window.location.origin,
+
+      // ---- Episode state ----
+      selectedWorkflow: 'A',
+      workflowId:       '',
+      workflowGoal:     '',
+      currentScore:     0.001,
+      stepCount:        0,
+      maxSteps:         15,
+      isRunning:        false,
+      policyDriftActive: false,
+      serverHealthy:    false,
+
+      // ---- Step tracking ----
+      allSteps:         [],
+      completedSteps:   [],
+      totalSteps:       0,
+
+      // ---- App state ----
+      appTabs: [
+        { id: 'zendesk',    label: 'Zendesk',    icon: '🎫' },
+        { id: 'jira',       label: 'Jira',       icon: '🐛' },
+        { id: 'salesforce', label: 'Salesforce', icon: '💼' },
+        { id: 'workday',    label: 'Workday',    icon: '👥' },
+      ],
+      activeAppTab: 'zendesk',
+      appStates:    { zendesk: '', jira: '', salesforce: '', workday: '' },
+      appOpenCounts:{ zendesk: 0, jira: 0, salesforce: 0, workday: 0 },
+
+      // ---- Schema / Rules ----
+      schemaHints:   {},
+      schemaVersions:{},
+      activeRules:   {},
+
+      // ---- Metrics ----
+      rewardHistory: [],
+      rewardComponents: [
+        { key: 'workflow_completion',   label: 'Workflow',  value: 0, color: 'bg-sky-500' },
+        { key: 'rule_compliance',       label: 'Compliance',value: 0, color: 'bg-green-500' },
+        { key: 'schema_adaptation',     label: 'Schema',    value: 0, color: 'bg-violet-500' },
+        { key: 'efficiency',            label: 'Efficiency',value: 0, color: 'bg-amber-500' },
+        { key: 'policy_drift_handling', label: 'Policy',    value: 0, color: 'bg-pink-500' },
+      ],
+      violationCount:   0,
+      schemaAdaptCount: 0,
+      schemaErrorCount: 0,
+      violations:       [],
+
+      // ---- Log ----
+      actionLog: [],
+
+      // ---- SSE handle ----
+      _sse: null,
+      _chart: null,
+      scoreUpdated: false,
+
+      // ----------------------------------------------------------------
+      // Init
+      // ----------------------------------------------------------------
+      async init() {
+        await this.checkHealth();
+        this._chart = this._initChart();
+        // Poll health every 10s
+        setInterval(() => this.checkHealth(), 10_000);
+      },
+
+      async checkHealth() {
+        try {
+          const r = await fetch(this.envUrl + '/health');
+          this.serverHealthy = r.ok;
+        } catch { this.serverHealthy = false; }
+      },
+
+      // ----------------------------------------------------------------
+      // Reset
+      // ----------------------------------------------------------------
+      async resetEpisode() {
+        this.stopAgent();
+        try {
+          const r = await fetch(this.envUrl + '/reset', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ workflow_id: this.selectedWorkflow }),
+          });
+          const data = await r.json();
+          this._applyObservation(data.observation, null, 0);
+          this.actionLog = [];
+          this.rewardHistory = [];
+          this.violationCount = 0;
+          this.schemaAdaptCount = 0;
+          this.schemaErrorCount = 0;
+          this.violations = [];
+          this._updateChart();
+          this._pushLog({ type: 'reset', step: 0, message: 'Episode reset. Ready to run agent.' });
+          // Fetch schema versions from /state
+          const st = await fetch(this.envUrl + '/state').then(r => r.json());
+          this.schemaVersions = st.schema_versions || {};
+          this.policyDriftActive = st.policy_drift_active || false;
+        } catch (e) {
+          this._pushLog({ type: 'error', step: 0, message: 'Reset failed: ' + e });
+        }
+      },
+
+      // ----------------------------------------------------------------
+      // Run agent via SSE
+      // ----------------------------------------------------------------
+      startAgent() {
+        if (this.isRunning) return;
+        this.isRunning = true;
+        const url = `${this.envUrl}/ui/run-agent?workflow_id=${this.selectedWorkflow}`;
+        this._sse = new EventSource(url);
+        this._sse.onmessage = (e) => {
+          try {
+            const evt = JSON.parse(e.data);
+            this._handleSSEEvent(evt);
+          } catch {}
+        };
+        this._sse.onerror = () => {
+          this.isRunning = false;
+          this._sse && this._sse.close();
+          this._pushLog({ type: 'error', step: this.stepCount, message: 'SSE connection error.' });
+        };
+      },
+
+      stopAgent() {
+        this.isRunning = false;
+        if (this._sse) { this._sse.close(); this._sse = null; }
+      },
+
+      _handleSSEEvent(evt) {
+        if (evt.type === 'reset') {
+          this.actionLog = [];
+          this.rewardHistory = [];
+          this.violationCount = 0;
+          this.violations = [];
+          this.schemaAdaptCount = 0;
+          this.schemaErrorCount = 0;
+          this._applyObservation(evt.observation, null, 0);
+          this._pushLog({ type: 'reset', step: 0, message: `Episode started — Workflow ${evt.workflow_id}` });
+        } else if (evt.type === 'step') {
+          const obs = evt.observation;
+          this._applyObservation(obs, evt.action, evt.reward);
+          // Detect schema adapt / error from message
+          if (obs.message && obs.message.includes('Stale schema')) this.schemaErrorCount++;
+          if (obs.reward > 0.05 && evt.action) this.schemaAdaptCount += (evt.action._adapted ? 1 : 0);
+          this.rewardHistory.push(evt.reward);
+          this._updateChart();
+          // Violations
+          if (obs.rule_violations && obs.rule_violations.length > 0) {
+            this.violations.push(...obs.rule_violations);
+            this.violationCount += obs.rule_violations.length;
+          }
+          this._pushLog({
+            type:      evt.reward < 0 ? 'error' : (evt.reward > 0.05 ? 'success' : 'info'),
+            step:      evt.step,
+            app:       evt.action?.app,
+            operation: evt.action?.operation,
+            reward:    evt.reward,
+            message:   obs.message,
+            argsStr:   evt.action?.args ? JSON.stringify(evt.action.args, null, 0).slice(0, 80) : '',
+          });
+          if (evt.done) { this.isRunning = false; }
+        } else if (evt.type === 'done') {
+          this.isRunning = false;
+          this._pushLog({
+            type: 'info', step: evt.steps,
+            message: `Episode done. Final score: ${(evt.final_score||0).toFixed(4)} | Workflow complete: ${evt.completed}`,
+          });
+        } else if (evt.type === 'error') {
+          this._pushLog({ type: 'error', step: evt.step || this.stepCount, message: evt.message });
+        }
+      },
+
+      // ----------------------------------------------------------------
+      // Apply observation to UI state
+      // ----------------------------------------------------------------
+      _applyObservation(obs, action, reward) {
+        this.workflowId    = obs.workflow_id || '';
+        this.workflowGoal  = obs.workflow_goal || '';
+        this.schemaHints   = obs.schema_hints || {};
+        this.activeRules   = obs.active_rules || {};
+        this.stepCount     = obs.step_count || 0;
+        this.appStates     = obs.app_states || this.appStates;
+        this.completedSteps= (obs.completed_steps || []).map(id => id);
+        this.policyDriftActive = obs.policy_drift_active || false;
+
+        // Score update with flash animation
+        const newScore = obs.current_score || 0.001;
+        if (newScore !== this.currentScore) {
+          this.currentScore = newScore;
+          this.scoreUpdated = true;
+          setTimeout(() => { this.scoreUpdated = false; }, 500);
+        }
+
+        // Workflow steps
+        const wfStepDefs = {
+          A: [
+            { id: 'A1', description: 'Acknowledge ZD-001 in Zendesk' },
+            { id: 'A2', description: 'Create linked Jira issue' },
+            { id: 'A3', description: 'Verify ACME-001 in Salesforce' },
+            { id: 'A4', description: 'Assign Jira issue to engineer' },
+            { id: 'A5', description: 'Log SLA event in Workday' },
+          ],
+          B: [
+            { id: 'B1', description: 'Create Workday onboarding record' },
+            { id: 'B2', description: 'Provision Jira access' },
+            { id: 'B3', description: 'Assign to Salesforce territory team' },
+            { id: 'B4', description: 'Create Zendesk agent profile' },
+          ],
+          C: [
+            { id: 'C1', description: 'Flag ACME-003 as churn risk' },
+            { id: 'C2', description: 'Query Zendesk support volume' },
+            { id: 'C3', description: 'Check Jira open bugs' },
+            { id: 'C4', description: 'Assign intervention owner' },
+          ],
+        };
+        const wfId = obs.workflow_id || this.selectedWorkflow;
+        this.allSteps  = wfStepDefs[wfId] || [];
+        this.totalSteps= this.allSteps.length;
+        this.maxSteps  = { A: 15, B: 20, C: 18 }[wfId] || 15;
+
+        // Reward breakdown
+        const rb = obs.reward_breakdown || {};
+        this.rewardComponents.forEach(c => {
+          c.value = rb[c.key] ?? 0;
+        });
+      },
+
+      // ----------------------------------------------------------------
+      // Log
+      // ----------------------------------------------------------------
+      _pushLog(entry) {
+        this.actionLog.push(entry);
+        // Auto-scroll to bottom
+        this.$nextTick(() => {
+          const el = document.getElementById('log-scroll');
+          if (el) el.scrollTop = el.scrollHeight;
+        });
+      },
+
+      // ----------------------------------------------------------------
+      // Chart
+      // ----------------------------------------------------------------
+      _initChart() {
+        const ctx = document.getElementById('rewardChart').getContext('2d');
+        return new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: [],
+            datasets: [{
+              data:            [],
+              borderColor:     '#38bdf8',
+              backgroundColor: 'rgba(56,189,248,0.08)',
+              borderWidth:     1.5,
+              pointRadius:     0,
+              tension:         0.3,
+              fill:            true,
+            }],
+          },
+          options: {
+            animation:   false,
+            responsive:  true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { enabled: false } },
+            scales: {
+              x: { display: false },
+              y: {
+                display: true,
+                grid:    { color: 'rgba(255,255,255,0.04)' },
+                ticks:   { color: '#475569', font: { size: 9 }, maxTicksLimit: 4 },
+              },
+            },
+          },
+        });
+      },
+
+      _updateChart() {
+        if (!this._chart) return;
+        const labels = this.rewardHistory.map((_, i) => i + 1);
+        this._chart.data.labels   = labels;
+        this._chart.data.datasets[0].data = this.rewardHistory;
+        this._chart.update('none');
+      },
+    };
+  }
+  </script>
+
+</body>
+</html>

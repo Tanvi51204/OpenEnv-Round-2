@@ -1,63 +1,110 @@
 """
-FastAPI application exposing the OpenEnv-compatible HTTP API.
-Endpoints: GET /health, GET /metadata, GET /schema,
-           POST /reset, POST /step, GET /state, POST /state, GET /docs
+FastAPI application — OrgOS OpenEnv HTTP API.
+
+Endpoints (OpenEnv-compatible):
+  GET  /health       — liveness probe
+  GET  /metadata     — env description
+  GET  /schema       — action / observation schema
+  POST /reset        — start new episode
+  POST /step         — take one action
+  GET  /state        — current episode metadata
+  POST /state        — same (backward compat)
+  GET  /schema/apps  — per-app operation catalogue (used by UI)
+  GET  /             — serve the demo dashboard UI
+  GET  /ui/run-agent — SSE stream of one inference episode (for UI)
 """
 
+import json
+import os
 from typing import Any, Dict, Optional
-from fastapi import Body, FastAPI, HTTPException
-from pydantic import BaseModel
-import uvicorn
 
-from models import DataCleaningAction, DataCleaningObservation, DataCleaningState
-from server.environment import DataCleaningEnvironment
+import uvicorn
+from fastapi import Body, FastAPI, HTTPException
+from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
+
+from models import OrgOSAction, OrgOSObservation, OrgOSState
+from server.environment import OrgOSEnvironment
+
+
+# ------------------------------------------------------------------
+# App setup
+# ------------------------------------------------------------------
 
 app = FastAPI(
-    title="Data Cleaning OpenEnv",
-    description="A real-world data cleaning environment for AI agent training.",
-    version="0.1.0",
+    title="OrgOS — Multi-App Enterprise RL Environment",
+    description=(
+        "A Salesforce + Zendesk + Jira + Workday simulator for training agents "
+        "that handle real enterprise workflows under schema drift and policy changes."
+    ),
+    version="2.0.0",
 )
 
-# Single shared environment instance (stateful server)
-env = DataCleaningEnvironment()
+# Mount static assets (JS, CSS) if the ui/ directory exists
+_UI_STATIC = os.path.join(os.path.dirname(__file__), "..", "ui", "static")
+if os.path.isdir(_UI_STATIC):
+    app.mount("/static", StaticFiles(directory=_UI_STATIC), name="static")
+
+# Single shared environment instance (stateful per-process)
+env = OrgOSEnvironment()
 
 
-# New reset body accepts workflow_id
+# ------------------------------------------------------------------
+# Request / response helpers
+# ------------------------------------------------------------------
+
 class ResetRequest(BaseModel):
-    workflow_id: Optional[str] = None  # "A", "B", "C", or None for round-robin
+    workflow_id: Optional[str] = None   # "A", "B", "C", or None for round-robin
 
 
 class StepResponse(BaseModel):
-    observation: DataCleaningObservation
+    observation: OrgOSObservation
     reward: float
     done: bool
     info: dict = {}
 
 
 # ------------------------------------------------------------------
-# Routes
+# Core OpenEnv routes
 # ------------------------------------------------------------------
 
 @app.get("/health")
 def health():
-    return {"status": "healthy"}
+    return {"status": "healthy", "env": "orgos", "version": "2.0.0"}
 
 
 @app.get("/metadata")
 def metadata():
     return {
-        "name": "data-cleaning-env",
+        "name":        "orgos-openenv",
         "description": (
-            "A real-world data cleaning environment where an AI agent fixes "
-            "missing values, duplicate rows, format inconsistencies, outliers, "
-            "and dtype errors across three progressively harder tasks."
+            "OrgOS: multi-app enterprise RL environment. "
+            "The agent completes cross-app business workflows (triage, onboarding, churn) "
+            "across Jira, Zendesk, Salesforce, and Workday simulators. "
+            "Schema drift and policy changes challenge the agent to generalise."
         ),
-        "version": "0.1.0",
-        "tags": ["openenv", "data-cleaning", "rl", "real-world"],
-        "tasks": [
-            {"id": "task1", "name": "Fill Missing Values", "difficulty": "easy"},
-            {"id": "task2", "name": "Fix Formats and Remove Duplicates", "difficulty": "medium"},
-            {"id": "task3", "name": "Full Cleaning Pipeline", "difficulty": "hard"},
+        "version": "2.0.0",
+        "tags": ["openenv", "enterprise", "multi-app", "schema-drift", "rl"],
+        "workflows": [
+            {
+                "id":         "A",
+                "name":       "Customer Bug Fix",
+                "difficulty": "medium",
+                "apps":       ["zendesk", "jira", "salesforce", "workday"],
+            },
+            {
+                "id":         "B",
+                "name":       "Employee Onboarding",
+                "difficulty": "medium",
+                "apps":       ["workday", "salesforce", "zendesk"],
+            },
+            {
+                "id":         "C",
+                "name":       "Churn Risk Alert",
+                "difficulty": "hard",
+                "apps":       ["salesforce", "zendesk", "jira"],
+            },
         ],
     }
 
@@ -68,58 +115,54 @@ def schema():
         "action": {
             "type": "object",
             "properties": {
-                "operation": {
-                    "type": "string",
-                    "enum": [
-                        "fill_missing",
-                        "drop_duplicates",
-                        "fix_format",
-                        "replace_value",
-                        "drop_outliers",
-                        "fix_dtype",
-                    ],
-                },
-                "column": {"type": "string", "nullable": True},
-                "params": {"type": "object", "nullable": True},
+                "app":       {"type": "string", "enum": ["jira", "zendesk", "salesforce", "workday"]},
+                "operation": {"type": "string", "description": "App-specific operation name"},
+                "args":      {"type": "object", "description": "Operation arguments"},
             },
-            "required": ["operation"],
+            "required": ["app", "operation"],
         },
         "observation": {
             "type": "object",
             "properties": {
-                "done":             {"type": "boolean"},
-                "reward":           {"type": "number"},
-                "data_preview":     {"type": "string"},
-                "data_shape":       {"type": "array", "items": {"type": "integer"}},
-                "missing_counts":   {"type": "object"},
-                "duplicate_count":  {"type": "integer"},
-                "dtype_issues":     {"type": "object"},
-                "task_description": {"type": "string"},
-                "message":          {"type": "string"},
-                "step_count":       {"type": "integer"},
-                "current_score":    {"type": "number"},
+                "done":            {"type": "boolean"},
+                "reward":          {"type": "number"},
+                "current_score":   {"type": "number"},
+                "workflow_id":     {"type": "string"},
+                "step_count":      {"type": "integer"},
+                "app_states":      {"type": "object"},
+                "workflow_goal":   {"type": "string"},
+                "completed_steps": {"type": "array"},
+                "pending_steps":   {"type": "array"},
+                "schema_hints":    {"type": "object"},
+                "active_rules":    {"type": "object"},
+                "rule_violations": {"type": "array"},
+                "reward_breakdown":{"type": "object"},
+                "message":         {"type": "string"},
             },
         },
         "state": {
             "type": "object",
             "properties": {
-                "episode_id":       {"type": "string"},
-                "task_id":          {"type": "integer"},
-                "step_count":       {"type": "integer"},
-                "max_steps":        {"type": "integer"},
-                "total_errors":     {"type": "integer"},
-                "errors_remaining": {"type": "integer"},
+                "episode_id":           {"type": "string"},
+                "workflow_id":          {"type": "string"},
+                "schema_versions":      {"type": "object"},
+                "step_count":           {"type": "integer"},
+                "max_steps":            {"type": "integer"},
+                "rule_violation_count": {"type": "integer"},
+                "workflow_completion":  {"type": "number"},
+                "rule_compliance_rate": {"type": "number"},
+                "policy_drift_active":  {"type": "boolean"},
             },
         },
     }
 
 
 @app.post("/reset", response_model=StepResponse)
-def reset(req: ResetRequest = ResetRequest()):
+def reset(req: ResetRequest = Body(default=ResetRequest())):
     try:
-        obs = env.reset(task_id=req.task_id)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        obs = env.reset(workflow_id=req.workflow_id)
+    except (ValueError, KeyError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
     return StepResponse(observation=obs, reward=obs.reward, done=False)
 
 
@@ -127,49 +170,108 @@ def reset(req: ResetRequest = ResetRequest()):
 async def step(body: Dict[str, Any] = Body(...)):
     """
     Accept both openenv-core wrapped format:
-        {"action": {"operation": "...", ...}, "timeout_s": 15}
-    and direct format (for backward compat with our own client/inference):
-        {"operation": "...", "column": "...", "params": {...}}
+        {"action": {"app": "...", "operation": "...", "args": {...}}, "timeout_s": 15}
+    and direct format:
+        {"app": "...", "operation": "...", "args": {...}}
     """
     action_data = body.get("action", body)
     try:
-        action = DataCleaningAction(**action_data)
-        obs = env.step(action)
-    except (TypeError, KeyError, Exception) as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        action = OrgOSAction(**action_data)
+        obs    = env.step(action)
+    except (TypeError, KeyError, Exception) as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
     return StepResponse(observation=obs, reward=obs.reward, done=obs.done)
 
 
-@app.get("/state", response_model=DataCleaningState)
+@app.get("/state", response_model=OrgOSState)
 def state_get():
     """GET /state — openenv-core spec."""
     return env.state()
 
 
-@app.post("/state", response_model=DataCleaningState)
+@app.post("/state", response_model=OrgOSState)
 def state_post():
     """POST /state — backward compatibility."""
     return env.state()
 
 
-
-@app.get("/", response_class=HTMLResponse)
-def ui():
-    """Serve the demo dashboard."""
-    return FileResponse("ui/index.html")
+# ------------------------------------------------------------------
+# UI helper routes
+# ------------------------------------------------------------------
 
 @app.get("/schema/apps")
 def app_schemas():
-    """Return the canonical action space per app — used by the UI."""
-    return {...}  # maps app → list of operations + their arg schemas
+    """Return per-app operation catalogue. Used by the dashboard UI."""
+    from server.apps.jira import JiraApp
+    from server.apps.zendesk import ZendeskApp
+    from server.apps.salesforce import SalesforceApp
+    from server.apps.workday import WorkdayApp
+    return {
+        "jira":       {"operations": JiraApp.OPERATIONS},
+        "zendesk":    {"operations": ZendeskApp.OPERATIONS},
+        "salesforce": {"operations": SalesforceApp.OPERATIONS},
+        "workday":    {"operations": WorkdayApp.OPERATIONS},
+    }
+
+
+@app.get("/ui/run-agent")
+async def run_agent_sse(workflow_id: str = "A", model: str = "gpt-4o-mini"):
+    """
+    Server-Sent Events stream.
+    Runs one inference episode and streams step events to the UI.
+    Each event is: data: <json>\n\n
+    """
+    import asyncio
+
+    async def _event_stream():
+        import json as _json
+        from inference import run_workflow_generator
+        try:
+            async for event in run_workflow_generator(workflow_id=workflow_id, env_ref=env):
+                yield f"data: {_json.dumps(event)}\n\n"
+                await asyncio.sleep(0)   # yield control
+        except Exception as exc:
+            yield f"data: {_json.dumps({'type': 'error', 'message': str(exc)})}\n\n"
+        yield "data: {\"type\": \"done\"}\n\n"
+
+    return StreamingResponse(
+        _event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+@app.get("/", response_class=HTMLResponse)
+def ui():
+    """Serve the OrgOS demo dashboard."""
+    ui_path = os.path.join(os.path.dirname(__file__), "..", "ui", "index.html")
+    if os.path.exists(ui_path):
+        return FileResponse(ui_path, media_type="text/html")
+    # Minimal inline fallback if ui/ hasn't been built yet
+    return HTMLResponse(content="""
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>OrgOS Dashboard</title>
+<style>body{font-family:monospace;background:#0f172a;color:#94a3b8;padding:2rem}
+h1{color:#38bdf8}a{color:#38bdf8}</style></head>
+<body>
+<h1>OrgOS — Enterprise RL Environment</h1>
+<p>The full dashboard UI is at <code>ui/index.html</code>.</p>
+<p>API docs: <a href="/docs">/docs</a> &nbsp;|&nbsp;
+   Health: <a href="/health">/health</a></p>
+</body></html>
+""")
 
 
 # ------------------------------------------------------------------
-# Entry point (required by openenv-core and [project.scripts])
+# Entry point
 # ------------------------------------------------------------------
 
 def main():
-    uvicorn.run("server.app:app", host="0.0.0.0", port=8000)
+    uvicorn.run("server.app:app", host="0.0.0.0", port=8000, reload=False)
 
 
 if __name__ == "__main__":
