@@ -90,7 +90,7 @@ class OrgOSEnvironment:
         # 1. Validate app exists
         if action.app not in self._apps:
             return self._build_obs(
-                reward=old_score - 0.05,
+                reward=-0.05,
                 done=False,
                 message=f"Unknown app '{action.app}'. Valid apps: {list(self._apps)}",
             )
@@ -103,7 +103,7 @@ class OrgOSEnvironment:
             self._rule_score = max(0.0, self._rule_score - 0.08)
             extra_penalty    = rule_penalty
             return self._build_obs(
-                reward=max(-0.25, old_score + extra_penalty),
+                reward=extra_penalty,
                 done=False,
                 message=f"Rule violation: {reason}",
             )
@@ -115,7 +115,7 @@ class OrgOSEnvironment:
         if result.get("schema_error"):
             self._efficiency -= 0.02
             return self._build_obs(
-                reward=old_score - 0.20,
+                reward=-0.20,
                 done=False,
                 message=(
                     f"Stale schema: field '{result['schema_error']}' is no longer valid. "
@@ -127,7 +127,7 @@ class OrgOSEnvironment:
         if not result.get("success"):
             self._efficiency -= 0.02   # penalize failed/no-op actions
             return self._build_obs(
-                reward=old_score - 0.01,
+                reward=-0.01,
                 done=False,
                 message=result.get("message", "Operation failed"),
             )
@@ -207,14 +207,16 @@ class OrgOSEnvironment:
             for name, app in self._apps.items()
         }
 
-        # Schema hints (partial — agent must probe to discover full mapping)
-        schema_hints = self._drift.get_all_changes()
-        # Flatten to dot-notation: {"jira.priority": "severity", ...}
-        flat_hints: Dict[str, str] = {}
-        for app_name, field_map in schema_hints.items():
-            for canonical, drifted in field_map.items():
-                if canonical != drifted:
-                    flat_hints[f"{app_name}.{canonical}"] = drifted
+        flat_hints = self._drift.get_hints()
+
+        # # Schema hints (partial — agent must probe to discover full mapping)
+        # schema_hints = self._drift.get_hints()
+        # # Flatten to dot-notation: {"jira.priority": "severity", ...}
+        # flat_hints: Dict[str, str] = {}
+        # for app_name, field_map in schema_hints.items():
+        #     for canonical, drifted in field_map.items():
+        #         if canonical != drifted:
+        #             flat_hints[f"{app_name}.{canonical}"] = drifted
 
         # Workflow progress
         completed_steps = self._workflow.get_completed()
@@ -233,7 +235,7 @@ class OrgOSEnvironment:
         return OrgOSObservation(
             done              = done,
             reward            = round(float(reward), 6),
-            current_score     = float(self._last_score),
+            current_score     = round(float(self._last_score),4),
             workflow_id       = self._workflow_id,
             step_count        = self._step_count,
             app_states        = app_states,

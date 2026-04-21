@@ -118,7 +118,7 @@ WORKFLOW_GOALS: Dict[str, str] = {
     "B": (
         "Workflow B — Employee Onboarding: "
         "A new support engineer has joined the West team. "
-        "Employee ID: EMP-NEW-001, Name: Alex Rivera, department: support, territory: west. "
+        "Employee ID: EMP-NEW-001, Name: Jordan Riley, department: support, territory: west. "
         "Steps required: "
         "(1) create an onboarding record in Workday for EMP-NEW-001, "
         "(2) provision Jira access for EMP-NEW-001 via Workday, "
