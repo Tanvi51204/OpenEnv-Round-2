@@ -1,26 +1,23 @@
-[project]
-name = "data-cleaning-env"
-version = "0.1.0"
-description = "Real-world data cleaning environment for OpenEnv / Scaler hackathon"
-requires-python = ">=3.11"
-dependencies = [
-    "fastapi==0.135.2",
-    "uvicorn[standard]==0.40.0",
-    "pydantic==2.12.5",
-    "pandas==2.2.3",
-    "numpy==2.2.4",
-    "faker==40.12.0",
-    "openai==2.15.0",
-    "httpx==0.28.1",
-    "openenv-core==0.2.3",
-]
-
-[project.scripts]
-server = "server.app:main"
-
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[project]
+name = "orgos"
+version = "2.0.0"
+description = "OrgOS — Multi-App Enterprise Workflow RL Environment"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "pydantic",
+    "numpy",
+    "faker",
+    "openai",
+    "httpx",
+    "openenv-core",
+    "aiofiles",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["server"]

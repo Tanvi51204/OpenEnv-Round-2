@@ -1,73 +1,86 @@
-name: data-cleaning-env
-version: "0.1.0"
+name: orgos-openenv
+version: "2.0.0"
 description: >
-  A real-world data cleaning environment where an AI agent fixes missing
-  values, duplicate rows, format inconsistencies, outliers, and dtype errors
-  across three progressively harder tasks.
+  OrgOS is a multi-app enterprise RL environment where an agent completes
+  business workflows across Jira, Zendesk, Salesforce, and Workday.
+  Between episodes, schema drift renames fields and policy drift tightens SLAs,
+  forcing agents to generalize rather than memorize.
 
-author: openenv-hackathon
+author: tanvibisht
 tags:
   - openenv
-  - data-cleaning
+  - enterprise
+  - multi-app
+  - schema-drift
   - rl
-  - real-world
 
 tasks:
-  - id: task1
-    name: "Fill Missing Values"
+  - id: workflow_a
+    name: "Customer Bug Fix"
     difficulty: easy
+    max_steps: 15
+    description: >
+      Triage a customer bug report end-to-end: acknowledge the Zendesk ticket,
+      create a linked Jira issue, assign it to an engineer, log the SLA event
+      in Workday, and query Salesforce for account health. Support role only.
+
+  - id: workflow_b
+    name: "Employee Onboarding"
+    difficulty: medium
     max_steps: 20
     description: >
-      Fill all NaN values in an employee records dataset.
-      Columns with missing data: age, salary, department.
+      Onboard a new employee: create their Workday record, provision Jira access
+      based on role, add them to the correct Salesforce territory team, and
+      create their Zendesk support profile. Manager role required.
 
-  - id: task2
-    name: "Fix Formats and Remove Duplicates"
+  - id: workflow_c
+    name: "Churn Risk Alert"
     difficulty: medium
-    max_steps: 30
+    max_steps: 18
     description: >
-      Standardise phone numbers (NNN-NNN-NNNN) and dates (YYYY-MM-DD)
-      in a product catalog, and remove ~15 duplicate rows.
-
-  - id: task3
-    name: "Full Cleaning Pipeline"
-    difficulty: hard
-    max_steps: 40
-    description: >
-      End-to-end pipeline on a customer database: fill missing values,
-      remove duplicates, drop outliers in purchase_amount, standardise
-      country capitalisation, and fix mixed date formats.
+      Respond to a churn risk signal: flag the account in Salesforce, escalate
+      to a Zendesk ticket, create a Jira tracking issue, and log the SLA event
+      in Workday. Support role. Policy drift may tighten SLA thresholds.
 
 api:
-  health:  GET  /health
-  reset:   POST /reset
-  step:    POST /step
-  state:   POST /state
-  docs:    GET  /docs
+  routes:
+    health: GET /health
+    reset:  POST /reset
+    step:   POST /step
+    state:  GET /state
+    docs:   GET /docs
+    schema: GET /schema/apps
 
 reward:
   range: [0.001, 0.999]
-  partial: true
-  terminal_bonus: 0.0
+  partial_rewards: true
+  terminal_bonus: 0.20
+  components:
+    workflow_completion:   0.30
+    rule_compliance:       0.25
+    schema_adaptation:     0.20
+    efficiency:            0.15
+    policy_drift_handling: 0.10
 
 observation_space:
-  type: object
   fields:
-    done:            boolean
-    reward:          float
-    data_preview:    string   # First 10 rows as CSV
-    data_shape:      list     # [rows, cols]
-    missing_counts:  object   # {column: count}
-    duplicate_count: integer
-    dtype_issues:    object   # {column: issue_description}
-    task_description: string
-    message:         string
-    step_count:      integer
-    current_score:   float    # 0.0–1.0
+    - done: bool
+    - reward: float
+    - current_score: "float in [0.001, 0.999]"
+    - workflow_id: "A | B | C"
+    - step_count: int
+    - app_states: "dict[app_name, str] — preview of each app's records"
+    - workflow_goal: str
+    - completed_steps: "list[str]"
+    - pending_steps: "list[str]"
+    - schema_hints: "dict[str, str] — e.g. {\"jira.priority\": \"severity\"}"
+    - active_rules: "dict — current SLA thresholds and RBAC rules"
+    - rule_violations: "list[str] — violations from last action"
+    - reward_breakdown: "RewardBreakdown — 5-component score snapshot"
+    - message: "str — feedback from last action"
 
 action_space:
-  type: object
   fields:
-    operation: string   # fill_missing | drop_duplicates | fix_format | replace_value | drop_outliers | fix_dtype
-    column:    string   # optional depending on operation
-    params:    object   # optional operation parameters
+    - app: "jira | zendesk | salesforce | workday"
+    - operation: str
+    - args: "dict — operation-specific arguments"
