@@ -1,0 +1,44 @@
+# ---- Git ----
+.git
+.gitignore
+
+# ---- Python cache ----
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pytest_cache/
+
+# ---- Virtual environments ----
+venv/
+.env/
+.venv/
+
+# ---- Environment files ----
+.env
+.env.*
+
+# ---- OS files ----
+.DS_Store
+Thumbs.db
+
+# ---- Logs ----
+*.log
+
+# ---- Model / large local files (if any) ----
+checkpoints/
+models/
+*.pt
+*.pth
+*.bin
+
+# ---- IDE files ----
+.vscode/
+.idea/
+
+# ---- Node (if frontend exists) ----
+node_modules/
+
+# ---- Docker ----
+Dockerfile*
+docker-compose.yml

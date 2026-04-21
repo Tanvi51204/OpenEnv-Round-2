@@ -1,0 +1,73 @@
+name: data-cleaning-env
+version: "0.1.0"
+description: >
+  A real-world data cleaning environment where an AI agent fixes missing
+  values, duplicate rows, format inconsistencies, outliers, and dtype errors
+  across three progressively harder tasks.
+
+author: openenv-hackathon
+tags:
+  - openenv
+  - data-cleaning
+  - rl
+  - real-world
+
+tasks:
+  - id: task1
+    name: "Fill Missing Values"
+    difficulty: easy
+    max_steps: 20
+    description: >
+      Fill all NaN values in an employee records dataset.
+      Columns with missing data: age, salary, department.
+
+  - id: task2
+    name: "Fix Formats and Remove Duplicates"
+    difficulty: medium
+    max_steps: 30
+    description: >
+      Standardise phone numbers (NNN-NNN-NNNN) and dates (YYYY-MM-DD)
+      in a product catalog, and remove ~15 duplicate rows.
+
+  - id: task3
+    name: "Full Cleaning Pipeline"
+    difficulty: hard
+    max_steps: 40
+    description: >
+      End-to-end pipeline on a customer database: fill missing values,
+      remove duplicates, drop outliers in purchase_amount, standardise
+      country capitalisation, and fix mixed date formats.
+
+api:
+  health:  GET  /health
+  reset:   POST /reset
+  step:    POST /step
+  state:   POST /state
+  docs:    GET  /docs
+
+reward:
+  range: [0.001, 0.999]
+  partial: true
+  terminal_bonus: 0.0
+
+observation_space:
+  type: object
+  fields:
+    done:            boolean
+    reward:          float
+    data_preview:    string   # First 10 rows as CSV
+    data_shape:      list     # [rows, cols]
+    missing_counts:  object   # {column: count}
+    duplicate_count: integer
+    dtype_issues:    object   # {column: issue_description}
+    task_description: string
+    message:         string
+    step_count:      integer
+    current_score:   float    # 0.0–1.0
+
+action_space:
+  type: object
+  fields:
+    operation: string   # fill_missing | drop_duplicates | fix_format | replace_value | drop_outliers | fix_dtype
+    column:    string   # optional depending on operation
+    params:    object   # optional operation parameters
