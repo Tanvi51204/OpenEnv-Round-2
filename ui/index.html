@@ -358,6 +358,11 @@
        ================================================================ -->
   <script>
   function orgos() {
+    // Non-reactive handles — kept outside Alpine's Proxy to avoid
+    // deep-traversal stack overflows on complex objects (Chart.js, EventSource).
+    let _chartInst = null;
+    let _sseInst   = null;
+
     return {
       // ---- Config ----
       envUrl: window.location.origin,
@@ -411,9 +416,6 @@
       // ---- Log ----
       actionLog: [],
 
-      // ---- SSE handle ----
-      _sse: null,
-      _chart: null,
       scoreUpdated: false,
 
       // ----------------------------------------------------------------
@@ -421,7 +423,7 @@
       // ----------------------------------------------------------------
       async init() {
         await this.checkHealth();
-        this._chart = this._initChart();
+        _chartInst = this._initChart();
         // Poll health every 10s
         setInterval(() => this.checkHealth(), 10_000);
       },
@@ -470,23 +472,23 @@
         if (this.isRunning) return;
         this.isRunning = true;
         const url = `${this.envUrl}/ui/run-agent?workflow_id=${this.selectedWorkflow}`;
-        this._sse = new EventSource(url);
-        this._sse.onmessage = (e) => {
+        _sseInst = new EventSource(url);
+        _sseInst.onmessage = (e) => {
           try {
             const evt = JSON.parse(e.data);
             this._handleSSEEvent(evt);
           } catch {}
         };
-        this._sse.onerror = () => {
+        _sseInst.onerror = () => {
           this.isRunning = false;
-          this._sse && this._sse.close();
+          if (_sseInst) { _sseInst.close(); _sseInst = null; }
           this._pushLog({ type: 'error', step: this.stepCount, message: 'SSE connection error.' });
         };
       },
 
       stopAgent() {
         this.isRunning = false;
-        if (this._sse) { this._sse.close(); this._sse = null; }
+        if (_sseInst) { _sseInst.close(); _sseInst = null; }
       },
 
       _handleSSEEvent(evt) {
@@ -523,13 +525,14 @@
           });
           if (evt.done) { this.isRunning = false; }
         } else if (evt.type === 'done') {
-          this.isRunning = false;
           this._pushLog({
             type: 'info', step: evt.steps,
             message: `Episode done. Final score: ${(evt.final_score||0).toFixed(4)} | Workflow complete: ${evt.completed}`,
           });
+          this.stopAgent();   // close EventSource — prevents auto-reconnect
         } else if (evt.type === 'error') {
           this._pushLog({ type: 'error', step: evt.step || this.stepCount, message: evt.message });
+          this.stopAgent();   // close EventSource on error too — prevents reconnect loop
         }
       },
 
@@ -637,11 +640,11 @@
       },
 
       _updateChart() {
-        if (!this._chart) return;
+        if (!_chartInst) return;
         const labels = this.rewardHistory.map((_, i) => i + 1);
-        this._chart.data.labels   = labels;
-        this._chart.data.datasets[0].data = this.rewardHistory;
-        this._chart.update('none');
+        _chartInst.data.labels            = labels;
+        _chartInst.data.datasets[0].data  = this.rewardHistory;
+        _chartInst.update('none');
       },
     };
   }
