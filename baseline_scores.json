@@ -1,8 +1,8 @@
 {
   "scores": {
-    "task1": 0.99,
-    "task2": 0.99,
-    "task3": 0.99
+    "workflow_A": 0.7,
+    "workflow_B": 0.563,
+    "workflow_C": 0.625
   },
-  "average": 0.99
+  "average": 0.6293
 }

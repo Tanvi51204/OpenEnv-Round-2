@@ -23,7 +23,8 @@ from typing import AsyncGenerator, Dict, List, Optional
 
 import httpx
 from openai import OpenAI
-
+from dotenv import load_dotenv
+load_dotenv()
 # ------------------------------------------------------------------
 # Config
 # ------------------------------------------------------------------
