@@ -149,30 +149,31 @@ class SalesforceApp(BaseApp):
         }
 
     def _op_assign_account_owner(self, account_id: str, **kwargs) -> Dict:
-        schema_error, schema_adapted = self._check_schema_drift(kwargs)
-        if schema_error:
-            hint = self._drift.translate_field("owner", self.APP_NAME)
-            return {"success": False, "schema_error": schema_error,
-                    "message": f"Schema error: use '{hint}' not '{schema_error}'"}
+            schema_error, schema_adapted = self._check_schema_drift(kwargs)
+            if schema_error:
+                hint = self._drift.translate_field("owner", self.APP_NAME)
+                return {"success": False, "schema_error": schema_error,
+                        "message": f"Schema error: use '{hint}' not '{schema_error}'"}
 
-        rec = self._records.get(account_id)
-        if not rec:
-            return {"success": False, "message": f"Account {account_id} not found"}
+            rec = self._records.get(account_id)
+            if not rec:
+                return {"success": False, "message": f"Account {account_id} not found"}
 
-        new_owner = (kwargs.get("owner") or kwargs.get("owner_name")
-                     or kwargs.get("account_owner") or kwargs.get("rep_email"))
-        if not new_owner:
-            return {"success": False,
-                    "message": "Provide owner / owner_name / account_owner / rep_email"}
+            new_owner = (kwargs.get("owner") or kwargs.get("owner_name")
+                        or kwargs.get("account_owner") or kwargs.get("rep_email"))
+            if not new_owner:
+                correct_field = self._drift.translate_field("owner", self.APP_NAME)
+                return {"success": False,
+                        "message": f"Missing owner field. Use '{correct_field}' as the arg key for this episode."}
 
-        rec["owner"] = new_owner
-        rec["_team_assigned"] = True
-        if account_id == "ACME-003":
-            rec["_intervention_assigned"] = True
+            rec["owner"] = new_owner
+            rec["_team_assigned"] = True
+            if account_id == "ACME-003":
+                rec["_intervention_assigned"] = True
 
-        return {"success": True, "schema_adapted": schema_adapted,
-                "message": f"{account_id} owner → '{new_owner}'"}
-
+            return {"success": True, "schema_adapted": schema_adapted,
+                    "message": f"{account_id} owner → '{new_owner}'"}
+                    
     def _op_log_interaction(self, account_id: str, note: str = "") -> Dict:
         rec = self._records.get(account_id)
         if not rec:

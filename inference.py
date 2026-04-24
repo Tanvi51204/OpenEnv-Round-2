@@ -65,7 +65,8 @@ Available apps and key operations:
   jira:       get_issue, create_issue, update_status, set_priority, assign_owner,
               add_label, link_zendesk_ticket, close_issue, list_issues
   zendesk:    get_ticket, acknowledge_ticket, set_urgency, assign_agent,
-              escalate_to_jira, resolve_ticket, add_note, list_tickets
+              escalate_to_jira, resolve_ticket, add_note, list_tickets,
+              create_agent_profile
   salesforce: get_account, list_accounts, update_deal_stage, flag_churn_risk,
               assign_account_owner, log_interaction, get_opportunity
   workday:    get_employee, list_employees, provision_access, log_sla_event,
@@ -84,6 +85,7 @@ Example actions:
   {"app": "jira", "operation": "create_issue", "args": {"title": "Bug fix for ACME-001", "linked_zendesk": "ZD-001"}}
   {"app": "salesforce", "operation": "get_account", "args": {"account_id": "ACME-001"}}
   {"app": "workday", "operation": "log_sla_event", "args": {"ticket_id": "ZD-001", "sla_met": true}}
+  {"app": "zendesk", "operation": "create_agent_profile", "args": {"employee_id": "EMP-NEW-001", "email": "jordan.riley@company.com", "name": "Jordan Riley"}}
 """
 
 WORKFLOW_NAMES = {
@@ -198,8 +200,14 @@ def run_workflow(workflow_id: str) -> float:
             history.append({"role": "user", "content": obs_text})
 
             # Trim history to avoid context overflow
+            # if len(history) > 20:
+            #     history = history[-20:]
+            # Trim history — always keep an even number so roles alternate correctly
             if len(history) > 20:
                 history = history[-20:]
+            # Ensure history starts with a user message (Gemma requires strict alternation)
+            if history and history[0]["role"] != "user":
+                history = history[1:]            
 
             try:
                 response = llm_client.chat.completions.create(
