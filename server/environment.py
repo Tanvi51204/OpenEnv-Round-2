@@ -87,14 +87,11 @@ class OrgOSEnvironment:
         old_score    = self._last_score
         extra_penalty = 0.0
 
-        # Check max-steps first — applies regardless of action outcome
-        at_max = self._step_count >= self.MAX_STEPS[self._workflow_id]
-
         # 1. Validate app exists
         if action.app not in self._apps:
             return self._build_obs(
                 reward=-0.05,
-                done=at_max,
+                done=False,
                 message=f"Unknown app '{action.app}'. Valid apps: {list(self._apps)}",
             )
 
@@ -107,7 +104,7 @@ class OrgOSEnvironment:
             extra_penalty    = rule_penalty
             return self._build_obs(
                 reward=extra_penalty,
-                done=at_max,
+                done=False,
                 message=f"Rule violation: {reason}",
             )
 
@@ -119,7 +116,7 @@ class OrgOSEnvironment:
             self._efficiency -= 0.02
             return self._build_obs(
                 reward=-0.20,
-                done=at_max,
+                done=False,
                 message=(
                     f"Stale schema: field '{result['schema_error']}' is no longer valid. "
                     "Check schema_hints for the current field name. "
@@ -131,18 +128,18 @@ class OrgOSEnvironment:
             self._efficiency -= 0.02   # penalize failed/no-op actions
             return self._build_obs(
                 reward=-0.01,
-                done=at_max,
+                done=False,
                 message=result.get("message", "Operation failed"),
             )
-
-        # Earn compliance + efficiency for every successful action
-        self._rule_score = min(1.0, self._rule_score + 0.10)
-        self._efficiency = min(1.0, self._efficiency + 0.10)
 
         # Schema adaptation bonus (agent used correct drifted field name)
         if result.get("schema_adapted"):
             self._schema_score = min(1.0, self._schema_score + 0.10)
             self._policy_score = min(1.0, self._policy_score + 0.05)
+
+        # Earn compliance + efficiency for every successful action
+        self._rule_score = min(1.0, self._rule_score + 0.10)
+        self._efficiency = min(1.0, self._efficiency + 0.10)
 
         # 5. Re-evaluate workflow completion
         self._wf_score = self._workflow.evaluate(self._apps)
@@ -150,7 +147,7 @@ class OrgOSEnvironment:
         # 6. SLA check (only if a ticket was touched)
         sla_ok, sla_pen = self._rules.check_sla(
             result.get("ticket", {}),
-            self._step_count * 2.5,   # approximate 2.5 min per step
+            self._step_count * 10,    # 10 min per step — P1 breaches at step 24 (step 12 under policy drift)
         )
         if not sla_ok:
             extra_penalty   += sla_pen
@@ -227,17 +224,8 @@ class OrgOSEnvironment:
 
         # Workflow progress
         completed_steps = self._workflow.get_completed()
+        pending_steps   = self._workflow.get_pending()
         workflow_goal   = self._workflow.get_goal()
-        total_steps     = len(self._workflow._steps)
-        steps_done      = len(completed_steps)
-        # Expose only a progress count — agent must infer what's next from app states
-        if steps_done == total_steps:
-            pending_steps = []
-        else:
-            pending_steps = [
-                f"{steps_done}/{total_steps} steps completed — "
-                "inspect app states and schema_hints to determine your next action."
-            ]
 
         # Reward breakdown snapshot
         breakdown = RewardBreakdown(

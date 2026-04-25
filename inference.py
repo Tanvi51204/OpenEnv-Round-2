@@ -47,12 +47,11 @@ SYSTEM_PROMPT = """\
 You are OrgOS Agent — an enterprise workflow automation agent.
 You operate across four SaaS applications: Jira, Zendesk, Salesforce, and Workday.
 
-Each turn you receive an observation with:
-  - workflow_goal    : the business objective you must achieve
-  - completed_steps  : step IDs already finished (e.g. ["A1", "A2"])
-  - app_states       : current state of each app — your primary source of truth
-  - schema_hints     : PARTIAL field renames in effect (e.g. {"jira.priority": "severity"})
-                       Not all drift is revealed — probe with get_* if a field is rejected.
+Each turn you receive a JSON observation with:
+  - workflow_goal    : the task you must complete
+  - pending_steps    : remaining steps in the workflow
+  - app_states       : current state of each app
+  - schema_hints     : field renames in effect this episode (e.g. {"jira.priority": "severity"})
   - active_rules     : current SLA / approval thresholds
   - message          : feedback from the last action
   - current_score    : your cumulative score (0.001–0.999)
@@ -75,12 +74,20 @@ Available apps and key operations:
 
 CRITICAL RULES:
 1. Read schema_hints FIRST — if "jira.priority" → "severity", use "severity" not "priority" in args.
-   If a field is rejected, use get_* or list_* to probe the current schema before retrying.
-2. Inspect app_states to determine what has been done and what still needs action.
-3. Use list_* and get_* operations to discover record IDs — never assume them.
-4. Do not repeat a successful action.
-5. If an operation fails, read the message and adapt your field names or args.
-6. Stop when completed_steps covers all workflow steps or done=true.
+2. Complete ALL pending_steps in order.
+3. Do not repeat a successful action.
+4. If an operation fails, read the message carefully and adapt.
+5. Use list_* operations to discover record IDs when needed.
+6. Stop when pending_steps is empty or done=true.
+
+Example actions:
+  {"app": "zendesk", "operation": "list_tickets", "args": {"state": "new"}}
+  {"app": "zendesk", "operation": "acknowledge_ticket", "args": {"ticket_number": "<ticket_number from list_tickets>"}}
+  {"app": "jira", "operation": "create_issue", "args": {"title": "Bug fix for <customer>", "linked_zendesk": "<ticket_number>"}}
+  {"app": "salesforce", "operation": "list_accounts", "args": {"health": "red"}}
+  {"app": "salesforce", "operation": "get_account", "args": {"account_id": "<account_id from list_accounts>"}}
+  {"app": "workday", "operation": "list_employees", "args": {"status": "pending"}}
+  {"app": "workday", "operation": "log_sla_event", "args": {"ticket_id": "<ticket_number>", "sla_met": true}}
 """
 
 WORKFLOW_NAMES = {
@@ -134,19 +141,18 @@ def api_get(path: str) -> dict:
 # ------------------------------------------------------------------
 
 def obs_to_text(obs: dict) -> str:
-    completed = obs.get("completed_steps", [])
-    completed_str = ", ".join(completed) if completed else "none"
-
     lines = [
         f"current_score:  {obs['current_score']}",
         f"step_count:     {obs['step_count']}",
         f"workflow_id:    {obs['workflow_id']}",
-        f"completed_steps: [{completed_str}]",
         "",
         "=== WORKFLOW GOAL ===",
         obs["workflow_goal"],
         "",
-        "=== SCHEMA HINTS (partial — probe with get_* for unknown fields) ===",
+        "=== PENDING STEPS ===",
+        "\n".join(f"  - {s}" for s in obs["pending_steps"]) or "  (all steps complete!)",
+        "",
+        "=== SCHEMA HINTS (use these field names) ===",
         json.dumps(obs["schema_hints"], indent=2) if obs["schema_hints"] else "  (no drift — use canonical names)",
         "",
         "=== ACTIVE RULES ===",
@@ -155,7 +161,7 @@ def obs_to_text(obs: dict) -> str:
         "=== LAST MESSAGE ===",
         obs["message"],
         "",
-        "=== APP STATES (use these to determine what still needs to be done) ===",
+        "=== APP STATES ===",
     ]
     for app_name, view in obs.get("app_states", {}).items():
         lines.append(f"  [{app_name.upper()}]")
