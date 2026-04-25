@@ -76,18 +76,38 @@ CRITICAL RULES:
 1. Read schema_hints FIRST — if "jira.priority" → "severity", use "severity" not "priority" in args.
 2. Complete ALL pending_steps in order.
 3. Do not repeat a successful action.
-4. If an operation fails, read the message carefully and adapt.
-5. Use list_* operations to discover record IDs when needed.
-6. Stop when pending_steps is empty or done=true.
+4. When an operation creates a new resource (e.g. create_issue returns issue_id "JIRA-051"),
+   use THAT returned ID for all subsequent operations on that resource — not a pre-existing ID.
+5. If an operation fails, read the message carefully and adapt.
+6. Use list_* operations to discover record IDs when needed — never assume an ID.
+7. Stop when pending_steps is empty or done=true.
 
 Example actions:
+  # Workflow A (bug fix) — discover then chain ticket_id and returned issue_id:
   {"app": "zendesk", "operation": "list_tickets", "args": {"state": "new"}}
   {"app": "zendesk", "operation": "acknowledge_ticket", "args": {"ticket_number": "<ticket_number from list_tickets>"}}
   {"app": "jira", "operation": "create_issue", "args": {"title": "Bug fix for <customer>", "linked_zendesk": "<ticket_number>"}}
-  {"app": "salesforce", "operation": "list_accounts", "args": {"health": "red"}}
-  {"app": "salesforce", "operation": "get_account", "args": {"account_id": "<account_id from list_accounts>"}}
+  # → create_issue returns {"issue_id": "JIRA-051", ...} — use JIRA-051 for assign_owner below
+  {"app": "jira", "operation": "assign_owner", "args": {"issue_id": "<issue_id from create_issue>", "assignee": "<engineer>"}}
+
+  # Workflow B (onboarding) — find the pending employee, then thread employee_id + territory:
   {"app": "workday", "operation": "list_employees", "args": {"status": "pending"}}
-  {"app": "workday", "operation": "log_sla_event", "args": {"ticket_id": "<ticket_number>", "sla_met": true}}
+  # → returns exactly one record. Capture employee_id (e.g. "EMP-NEW-001") AND territory (e.g. "west").
+  {"app": "workday", "operation": "create_onboarding_task", "args": {"employee_id": "<employee_id from list>"}}
+  {"app": "workday", "operation": "provision_access", "args": {"employee_id": "<employee_id from list>", "app_name": "jira"}}
+  # SF: assign that employee as owner of an account in THEIR territory:
+  {"app": "salesforce", "operation": "list_accounts", "args": {"territory": "<territory from list_employees>"}}
+  {"app": "salesforce", "operation": "assign_account_owner", "args": {"account_id": "<account_id from list>", "owner": "<employee_id from list>"}}
+  # Jira: assign an open issue to the new hire's employee_id:
+  {"app": "jira", "operation": "list_issues", "args": {"status": "open"}}
+  {"app": "jira", "operation": "assign_owner", "args": {"issue_id": "<issue_id from list>", "assignee": "<employee_id from list_employees>"}}
+
+  # Workflow C (churn) — discover the at-risk account, then scope all queries to it:
+  {"app": "salesforce", "operation": "list_accounts", "args": {"health": "red"}}
+  {"app": "salesforce", "operation": "flag_churn_risk", "args": {"account_id": "<account_id from list>"}}
+  {"app": "zendesk", "operation": "get_ticket", "args": {"customer_id": "<account_id from list>"}}
+  {"app": "jira", "operation": "list_issues", "args": {"customer_id": "<account_id from list>"}}
+  {"app": "salesforce", "operation": "assign_account_owner", "args": {"account_id": "<account_id from list>", "owner": "<engineer>"}}
 """
 
 WORKFLOW_NAMES = {

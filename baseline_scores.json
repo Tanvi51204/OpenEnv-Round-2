@@ -1,8 +1,8 @@
 {
   "scores": {
-    "workflow_A": 0.613,
-    "workflow_B": 0.65,
-    "workflow_C": 0.5
+    "workflow_A": 0.697,
+    "workflow_B": 0.744,
+    "workflow_C": 0.722
   },
-  "average": 0.5877
+  "average": 0.721
 }

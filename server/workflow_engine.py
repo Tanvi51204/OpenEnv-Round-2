@@ -1,7 +1,7 @@
 """Workflow engine — defines and evaluates multi-app workflow completion."""
 
 from dataclasses import dataclass
-from typing import Callable, Dict, List
+from typing import Callable, Dict, List, Optional
 
 
 @dataclass
@@ -12,6 +12,51 @@ class WorkflowStep:
     operation: str
     # Callable that checks if this step was completed given the app states
     completion_check: Callable[[Dict], bool]
+
+
+# ---------------------------------------------------------------------------
+# Helpers — look up semantic-marker targets at evaluation time so completion
+# checks are not coupled to specific record IDs in the data generator.
+# ---------------------------------------------------------------------------
+
+def _churn_target_account_id(apps: Dict) -> Optional[str]:
+    """Return the SF account_id flagged as the churn target this episode."""
+    for aid, rec in apps["salesforce"]._records.items():
+        if rec.get("_is_churn_target"):
+            return aid
+    return None
+
+
+def _new_hire_assigned_sf(apps: Dict) -> bool:
+    """Workflow B step B3: the new hire (from Workday) must be the SF owner of an account
+    in their own territory. Threads employee_id + territory across apps automatically."""
+    new_hire = apps["workday"].get_new_hire()
+    if not new_hire:
+        return False
+    return apps["salesforce"].new_hire_assigned_in_territory(
+        new_hire.get("employee_id", ""),
+        new_hire.get("territory", ""),
+    )
+
+
+def _new_hire_assigned_jira(apps: Dict) -> bool:
+    """Workflow B step B4: an open Jira issue must be assigned to the new hire's employee_id."""
+    new_hire = apps["workday"].get_new_hire()
+    if not new_hire:
+        return False
+    return apps["jira"].new_hire_assigned_to_issue(new_hire.get("employee_id", ""))
+
+
+def _support_queried_for_churn_target(apps: Dict) -> bool:
+    """Workflow C step C2: Zendesk must have been queried for the churn target's account."""
+    aid = _churn_target_account_id(apps)
+    return bool(aid) and apps["zendesk"].support_queried(aid)
+
+
+def _bugs_checked_for_churn_target(apps: Dict) -> bool:
+    """Workflow C step C3: Jira list_issues must have been called with customer_id=<churn target>."""
+    aid = _churn_target_account_id(apps)
+    return bool(aid) and apps["jira"].bugs_checked_for(aid)
 
 
 # ---------------------------------------------------------------------------
@@ -35,7 +80,7 @@ WORKFLOW_A_STEPS = [
         lambda apps: apps["salesforce"].account_checked(),
     ),
     WorkflowStep(
-        "A4", "Assign the pre-existing Jira bug for this customer to an engineer",
+        "A4", "Assign the Jira issue you just created (linked to the Zendesk ticket) to an engineer",
         "jira", "assign_owner",
         lambda apps: apps["jira"].issue_assigned(),
     ),
@@ -52,24 +97,30 @@ WORKFLOW_A_STEPS = [
 # ---------------------------------------------------------------------------
 WORKFLOW_B_STEPS = [
     WorkflowStep(
-        "B1", "Find the pending new hire in Workday and create their onboarding record",
+        "B1",
+        "Find the pending new hire in Workday (list_employees status=pending returns one result) "
+        "and create their onboarding record",
         "workday", "create_onboarding_task",
         lambda apps: apps["workday"].employee_created(),
     ),
     WorkflowStep(
-        "B2", "Provision Jira access for the new employee via Workday",
+        "B2",
+        "Provision Jira access for THAT new hire (use the employee_id from B1)",
         "workday", "provision_access",
         lambda apps: apps["workday"].access_provisioned("jira"),
     ),
     WorkflowStep(
-        "B3", "Assign the new employee to a Salesforce territory account (west region)",
+        "B3",
+        "Assign the new hire as Salesforce account owner for an account in their own territory "
+        "(use employee_id and territory from B1)",
         "salesforce", "assign_account_owner",
-        lambda apps: apps["salesforce"].team_assigned(),
+        _new_hire_assigned_sf,
     ),
     WorkflowStep(
-        "B4", "Create a Zendesk support agent profile for the new employee",
-        "zendesk", "assign_agent",
-        lambda apps: apps["zendesk"].profile_created(),
+        "B4",
+        "Assign an open Jira issue to the new hire (use employee_id from B1 as the assignee)",
+        "jira", "assign_owner",
+        _new_hire_assigned_jira,
     ),
 ]
 
@@ -84,14 +135,16 @@ WORKFLOW_C_STEPS = [
         lambda apps: apps["salesforce"].churn_flagged(),
     ),
     WorkflowStep(
-        "C2", "Query recent support tickets for the at-risk account in Zendesk",
+        "C2", "Query recent support tickets for the at-risk account in Zendesk "
+              "(use the account_id from C1, not a hardcoded value)",
         "zendesk", "get_ticket",
-        lambda apps: apps["zendesk"].support_queried("ACME-003"),
+        _support_queried_for_churn_target,
     ),
     WorkflowStep(
-        "C3", "List open Jira bugs linked to the at-risk account",
+        "C3", "List open Jira bugs for the at-risk account "
+              "(call list_issues with customer_id=<churn account>)",
         "jira", "list_issues",
-        lambda apps: apps["jira"].bugs_checked(),
+        _bugs_checked_for_churn_target,
     ),
     WorkflowStep(
         "C4", "Assign an intervention owner to the at-risk account in Salesforce",
@@ -113,11 +166,13 @@ WORKFLOW_GOALS: Dict[str, str] = {
         "Use list operations to discover relevant record IDs before acting."
     ),
     "B": (
-        "Workflow B — Employee Onboarding: "
-        "A new support engineer has joined the West team and needs to be fully set up. "
-        "Ensure their employment record exists, provision the appropriate tooling access, "
-        "assign them to the correct territory in your CRM, and create their support profile. "
-        "Query the relevant systems to identify the new employee and required accounts."
+        "Workflow B — Manager-Aware Onboarding: "
+        "One employee in Workday is currently pending onboarding (status=pending). "
+        "Find that pending employee, create their onboarding record, provision their Jira access, "
+        "assign them as the Salesforce account owner for an account in THEIR OWN territory, "
+        "and assign them ownership of an open Jira issue. "
+        "Each step's output feeds the next — capture the employee_id and territory from step 1 "
+        "and reuse them in subsequent steps."
     ),
     "C": (
         "Workflow C — Churn Risk Alert: "

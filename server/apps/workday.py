@@ -68,14 +68,27 @@ class WorkdayApp(BaseApp):
         return any(r.get("_sla_logged") for r in self._records.values())
 
     def employee_created(self) -> bool:
-        """True once create_onboarding_task was called for EMP-NEW-001 (Workflow B step B1)."""
-        return bool(self._records.get("EMP-NEW-001", {}).get("_onboarding_created"))
+        """True once create_onboarding_task was called for the pending new hire (Workflow B step B1)."""
+        return any(
+            r.get("_is_new_hire") and r.get("_onboarding_created")
+            for r in self._records.values()
+        )
 
     def access_provisioned(self, app_name: str) -> bool:
-        """True once provision_access was called for the given app (Workflow B step B2)."""
+        """True once provision_access was called for the NEW HIRE specifically (Workflow B step B2).
+        Tightened from any-employee free-pass to requiring _is_new_hire — eliminates the
+        old training dead-zone where provisioning a random employee satisfied the check."""
         return any(
-            r.get("_access_provisioned", {}).get(app_name)
+            r.get("_is_new_hire") and r.get("_access_provisioned", {}).get(app_name.lower())
             for r in self._records.values()
+        )
+
+    def get_new_hire(self) -> Optional[Dict]:
+        """Return the new-hire employee record (the one with _is_new_hire), or None.
+        Used by workflow_engine.py to thread employee_id / territory into B3 / B4 checks."""
+        return next(
+            (r for r in self._records.values() if r.get("_is_new_hire")),
+            None,
         )
 
     # ------------------------------------------------------------------
@@ -125,7 +138,7 @@ class WorkdayApp(BaseApp):
         if not rec:
             return {"success": False, "message": f"Employee {employee_id} not found"}
 
-        rec.setdefault("_access_provisioned", {})[app_name] = True
+        rec.setdefault("_access_provisioned", {})[app_name.lower()] = True
         return {"success": True, "schema_adapted": schema_adapted,
                 "message": f"Provisioned {app_name} access for {employee_id} ({rec.get('name', '')})"}
 

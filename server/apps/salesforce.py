@@ -65,20 +65,44 @@ class SalesforceApp(BaseApp):
     # ------------------------------------------------------------------
 
     def account_checked(self) -> bool:
-        """True once get_account was called for ACME-001 (Workflow A step A3)."""
-        return bool(self._records.get("ACME-001", {}).get("_account_checked"))
+        """True once get_account was called for the Workflow A customer (Workflow A step A3)."""
+        return any(
+            r.get("_is_workflow_a_account") and r.get("_account_checked")
+            for r in self._records.values()
+        )
 
     def churn_flagged(self) -> bool:
-        """True once flag_churn_risk was called for ACME-003 (Workflow C step C1)."""
-        return bool(self._records.get("ACME-003", {}).get("_churn_flagged"))
+        """True once flag_churn_risk was called for the at-risk account (Workflow C step C1)."""
+        return any(
+            r.get("_is_churn_target") and r.get("_churn_flagged")
+            for r in self._records.values()
+        )
 
     def team_assigned(self) -> bool:
-        """True once assign_account_owner was called (Workflow B step B3)."""
+        """Legacy free-pass check — kept for backwards compatibility.
+        Workflow B no longer uses this; see new_hire_assigned_in_territory()."""
         return any(r.get("_team_assigned") for r in self._records.values())
 
+    def new_hire_assigned_in_territory(self, employee_id: str, territory: str) -> bool:
+        """True once an SF account in `territory` has `employee_id` as its owner
+        (Workflow B step B3 — tightened from the free-pass team_assigned check).
+        Forces real cross-app data flow: the agent must use the employee_id and territory
+        discovered in B1 to satisfy this check."""
+        if not employee_id or not territory:
+            return False
+        return any(
+            r.get("territory") == territory
+            and r.get("owner") == employee_id
+            and r.get("_team_assigned")
+            for r in self._records.values()
+        )
+
     def intervention_assigned(self) -> bool:
-        """True once assign_account_owner called on ACME-003 (Workflow C step C4)."""
-        return bool(self._records.get("ACME-003", {}).get("_intervention_assigned"))
+        """True once assign_account_owner called on the churn-risk account (Workflow C step C4)."""
+        return any(
+            r.get("_is_churn_target") and r.get("_intervention_assigned")
+            for r in self._records.values()
+        )
 
     # ------------------------------------------------------------------
     # Operations
@@ -168,7 +192,9 @@ class SalesforceApp(BaseApp):
 
             rec["owner"] = new_owner
             rec["_team_assigned"] = True
-            if account_id == "ACME-003":
+            # Semantic-marker driven: any churn target getting an owner is an intervention.
+            # Replaces the old `account_id == "ACME-003"` hardcoded ID check.
+            if rec.get("_is_churn_target"):
                 rec["_intervention_assigned"] = True
 
             return {"success": True, "schema_adapted": schema_adapted,

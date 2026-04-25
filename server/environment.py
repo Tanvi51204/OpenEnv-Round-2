@@ -137,12 +137,21 @@ class OrgOSEnvironment:
             self._schema_score = min(1.0, self._schema_score + 0.10)
             self._policy_score = min(1.0, self._policy_score + 0.05)
 
-        # Earn compliance + efficiency for every successful action
-        self._rule_score = min(1.0, self._rule_score + 0.10)
-        self._efficiency = min(1.0, self._efficiency + 0.10)
+        # Earn compliance for every successful compliant action,
+        # normalised so completing all workflow steps earns exactly 1.0.
+        total_steps = max(1, len(self._workflow._steps))
+        earn_rate   = 1.0 / total_steps
+        self._rule_score = min(1.0, self._rule_score + earn_rate)
 
         # 5. Re-evaluate workflow completion
-        self._wf_score = self._workflow.evaluate(self._apps)
+        old_wf_score     = self._wf_score
+        self._wf_score   = self._workflow.evaluate(self._apps)
+        wf_advanced      = self._wf_score > old_wf_score
+
+        # Earn efficiency ONLY when a new workflow step was just completed.
+        # This penalises padding: closing random tickets, repeating ops, etc.
+        if wf_advanced:
+            self._efficiency = min(1.0, self._efficiency + earn_rate)
 
         # 6. SLA check (only if a ticket was touched)
         sla_ok, sla_pen = self._rules.check_sla(

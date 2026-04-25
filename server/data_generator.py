@@ -226,12 +226,13 @@ def generate_jira_records(n: int = 50, seed: int = SEED) -> List[Dict]:
 
     # Workflow A primary issue: JIRA-001 is unassigned, linked to ACME-001
     records[0].update({
-        "title":          "Customer login fails intermittently",
-        "priority":       "p1",
-        "status":         "open",
-        "customer_id":    "ACME-001",
-        "assignee":       None,
-        "linked_zendesk": None,
+        "title":            "Customer login fails intermittently",
+        "priority":         "p1",
+        "status":           "open",
+        "customer_id":      "ACME-001",
+        "assignee":         None,
+        "linked_zendesk":   None,
+        "_is_primary_bug":  True,   # semantic marker — used by issue_assigned() check
     })
 
     return records
@@ -264,11 +265,12 @@ def generate_zendesk_records(n: int = 40, seed: int = SEED) -> List[Dict]:
 
     # Workflow A primary: ZD-001 is unacknowledged, from ACME-001
     records[0].update({
-        "title":         "Login issue — cannot access my account",
-        "urgency":       "p1",
-        "state":         "new",
-        "customer_id":   "ACME-001",
-        "_acknowledged": False,
+        "title":               "Login issue — cannot access my account",
+        "urgency":             "p1",
+        "state":               "new",
+        "customer_id":         "ACME-001",
+        "_acknowledged":       False,
+        "_is_primary_ticket":  True,   # semantic marker — used by ticket_acknowledged() check
     })
 
     # Workflow C: several tickets from ACME-003
@@ -313,22 +315,24 @@ def generate_salesforce_records(n: int = 30, seed: int = SEED) -> List[Dict]:
 
     # Workflow A: ACME-001 is a paying customer with yellow health
     records[0].update({
-        "company_name": "Acme Corporation",
-        "deal_stage":   "closed_won",
-        "health":       "yellow",
-        "is_paying":    True,
-        "arr":          50_000,
-        "territory":    "west",
+        "company_name":          "Acme Corporation",
+        "deal_stage":            "closed_won",
+        "health":                "yellow",
+        "is_paying":             True,
+        "arr":                   50_000,
+        "territory":             "west",
+        "_is_workflow_a_account": True,   # semantic marker — used by account_checked() check
     })
 
     # Workflow C: ACME-003 is at churn risk
     records[2].update({
-        "company_name": "Globex Systems",
-        "health":       "red",
-        "deal_stage":   "negotiation",
-        "is_paying":    True,
-        "arr":          30_000,
-        "_churn_flagged": False,
+        "company_name":      "Globex Systems",
+        "health":            "red",
+        "deal_stage":        "negotiation",
+        "is_paying":         True,
+        "arr":               30_000,
+        "_churn_flagged":    False,
+        "_is_churn_target":  True,   # semantic marker — used by churn_flagged() / intervention_assigned()
     })
 
     return records
@@ -348,7 +352,9 @@ def generate_workday_records(n: int = 20, seed: int = SEED) -> List[Dict]:
             "name":        f"{random.choice(FIRST_NAMES)} {random.choice(LAST_NAMES)}",
             "level":       random.choice(levels),
             "manager_id":  f"EMP-{random.randint(1, min(i, 5)):03d}" if i > 1 else None,
-            "status":      random.choices(["active", "pending"], weights=[90, 10])[0],
+            # All random employees are "active" — only the new hire below has status="pending"
+            # so list_employees(status="pending") returns exactly one (discoverable) result.
+            "status":      "active",
             "department":  random.choice(departments),
             "territory":   random.choice(territories),
             "email":       f"emp{i}@company.com",
@@ -371,6 +377,7 @@ def generate_workday_records(n: int = 20, seed: int = SEED) -> List[Dict]:
         "_access_provisioned": {},
         "_sla_logged":         False,
         "_onboarding_created": False,
+        "_is_new_hire":        True,   # semantic marker — used by employee_created() check
     })
 
     return records
