@@ -173,13 +173,19 @@ async def step(body: Dict[str, Any] = Body(...)):
         {"action": {"app": "...", "operation": "...", "args": {...}}, "timeout_s": 15}
     and direct format:
         {"app": "...", "operation": "...", "args": {...}}
+    Invalid or empty actions return a -0.05 penalty observation rather than HTTP 400.
     """
     action_data = body.get("action", body)
     try:
         action = OrgOSAction(**action_data)
         obs    = env.step(action)
-    except (TypeError, KeyError, Exception) as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        # Return a graceful error observation so the inference loop can continue
+        obs = env._build_obs(
+            reward=-0.05,
+            done=False,
+            message=f"Invalid action format: {exc}. Use {{\"app\": \"...\", \"operation\": \"...\", \"args\": {{...}}}}",
+        )
     return StepResponse(observation=obs, reward=obs.reward, done=obs.done)
 
 

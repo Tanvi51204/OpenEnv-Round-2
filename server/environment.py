@@ -87,11 +87,14 @@ class OrgOSEnvironment:
         old_score    = self._last_score
         extra_penalty = 0.0
 
+        # Check max-steps first — applies regardless of action outcome
+        at_max = self._step_count >= self.MAX_STEPS[self._workflow_id]
+
         # 1. Validate app exists
         if action.app not in self._apps:
             return self._build_obs(
                 reward=-0.05,
-                done=False,
+                done=at_max,
                 message=f"Unknown app '{action.app}'. Valid apps: {list(self._apps)}",
             )
 
@@ -104,7 +107,7 @@ class OrgOSEnvironment:
             extra_penalty    = rule_penalty
             return self._build_obs(
                 reward=extra_penalty,
-                done=False,
+                done=at_max,
                 message=f"Rule violation: {reason}",
             )
 
@@ -116,7 +119,7 @@ class OrgOSEnvironment:
             self._efficiency -= 0.02
             return self._build_obs(
                 reward=-0.20,
-                done=False,
+                done=at_max,
                 message=(
                     f"Stale schema: field '{result['schema_error']}' is no longer valid. "
                     "Check schema_hints for the current field name. "
@@ -128,7 +131,7 @@ class OrgOSEnvironment:
             self._efficiency -= 0.02   # penalize failed/no-op actions
             return self._build_obs(
                 reward=-0.01,
-                done=False,
+                done=at_max,
                 message=result.get("message", "Operation failed"),
             )
 

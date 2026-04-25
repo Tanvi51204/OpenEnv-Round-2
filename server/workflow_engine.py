@@ -20,27 +20,27 @@ class WorkflowStep:
 # ---------------------------------------------------------------------------
 WORKFLOW_A_STEPS = [
     WorkflowStep(
-        "A1", "Acknowledge the incoming Zendesk ticket (ZD-001)",
+        "A1", "Find and acknowledge the new P1 support ticket in Zendesk",
         "zendesk", "acknowledge_ticket",
         lambda apps: apps["zendesk"].ticket_acknowledged(),
     ),
     WorkflowStep(
-        "A2", "Escalate to Jira — create a new issue linked to ZD-001",
+        "A2", "Create a new Jira issue linked to that Zendesk ticket",
         "jira", "create_issue",
         lambda apps: apps["jira"].has_linked_issue(),
     ),
     WorkflowStep(
-        "A3", "Verify the customer's account status in Salesforce (ACME-001)",
+        "A3", "Verify the customer's account status in Salesforce",
         "salesforce", "get_account",
         lambda apps: apps["salesforce"].account_checked(),
     ),
     WorkflowStep(
-        "A4", "Assign the Jira issue to an engineer (JIRA-001)",
+        "A4", "Assign the pre-existing Jira bug for this customer to an engineer",
         "jira", "assign_owner",
         lambda apps: apps["jira"].issue_assigned(),
     ),
     WorkflowStep(
-        "A5", "Log the SLA compliance event in Workday",
+        "A5", "Log the SLA compliance event in Workday using the ticket ID",
         "workday", "log_sla_event",
         lambda apps: apps["workday"].sla_logged(),
     ),
@@ -52,7 +52,7 @@ WORKFLOW_A_STEPS = [
 # ---------------------------------------------------------------------------
 WORKFLOW_B_STEPS = [
     WorkflowStep(
-        "B1", "Create the new employee's onboarding record in Workday (EMP-NEW-001)",
+        "B1", "Find the pending new hire in Workday and create their onboarding record",
         "workday", "create_onboarding_task",
         lambda apps: apps["workday"].employee_created(),
     ),
@@ -62,7 +62,7 @@ WORKFLOW_B_STEPS = [
         lambda apps: apps["workday"].access_provisioned("jira"),
     ),
     WorkflowStep(
-        "B3", "Assign the new employee to the correct Salesforce territory team",
+        "B3", "Assign the new employee to a Salesforce territory account (west region)",
         "salesforce", "assign_account_owner",
         lambda apps: apps["salesforce"].team_assigned(),
     ),
@@ -79,22 +79,22 @@ WORKFLOW_B_STEPS = [
 # ---------------------------------------------------------------------------
 WORKFLOW_C_STEPS = [
     WorkflowStep(
-        "C1", "Flag at-risk account ACME-003 as churn risk in Salesforce",
+        "C1", "Identify and flag the at-risk account as churn risk in Salesforce",
         "salesforce", "flag_churn_risk",
         lambda apps: apps["salesforce"].churn_flagged(),
     ),
     WorkflowStep(
-        "C2", "Query recent support ticket volume for ACME-003 in Zendesk",
+        "C2", "Query recent support tickets for the at-risk account in Zendesk",
         "zendesk", "get_ticket",
         lambda apps: apps["zendesk"].support_queried("ACME-003"),
     ),
     WorkflowStep(
-        "C3", "Check outstanding Jira bugs linked to ACME-003",
+        "C3", "List open Jira bugs linked to the at-risk account",
         "jira", "list_issues",
         lambda apps: apps["jira"].bugs_checked(),
     ),
     WorkflowStep(
-        "C4", "Assign an intervention owner to ACME-003 in Salesforce",
+        "C4", "Assign an intervention owner to the at-risk account in Salesforce",
         "salesforce", "assign_account_owner",
         lambda apps: apps["salesforce"].intervention_assigned(),
     ),

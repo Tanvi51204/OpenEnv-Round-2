@@ -92,11 +92,13 @@ class WorkdayApp(BaseApp):
 
     def _op_list_employees(self, department: Optional[str] = None,
                            status: Optional[str] = None,
+                           territory: Optional[str] = None,
                            limit: int = 10) -> Dict:
         matching = [
             r for r in self._records.values()
             if (department is None or r.get("department") == department)
             and (status is None or r.get("status") == status)
+            and (territory is None or r.get("territory") == territory)
         ][:limit]
         drifted = [self._to_agent_view(r) for r in matching]
         keep = ["employee_id", "name",
@@ -106,9 +108,10 @@ class WorkdayApp(BaseApp):
                 "department", "territory"]
         compact = [{k: v for k, v in r.items() if k in keep and v is not None}
                    for r in drifted]
+        filters = [f for f in [department, territory, status] if f]
         return {"success": True, "data": compact,
                 "message": f"Found {len(compact)} employees"
-                           + (f" in {department}" if department else "")}
+                           + (f" ({', '.join(filters)})" if filters else "")}
 
     def _op_provision_access(self, employee_id: str, app_name: str,
                              **kwargs) -> Dict:
