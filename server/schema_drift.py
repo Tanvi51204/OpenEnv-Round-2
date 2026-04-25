@@ -77,17 +77,20 @@ class SchemaDriftEngine:
         return None, False
 
     def get_hints(self) -> Dict[str, str]:
-        """Return partial schema hints visible in observation.
-        Reveals 1 changed field per app that has drift (agent must discover the rest)."""
-        hints = {}
-        rng = random.Random(self._seed)
+        """Return exactly 1 schema hint total across all apps.
+        Agent must probe with get_* / list_* to discover the rest of the drift."""
+        all_hints: Dict[str, str] = {}
         for app, version in self._versions.items():
             mapping = SCHEMA_MAP.get(app, {}).get(version, {})
-            changed = {f"{app}.{k}": v for k, v in mapping.items() if k != v}
-            if changed:
-                key = rng.choice(list(changed.keys()))
-                hints[key] = changed[key]
-        return hints
+            all_hints.update(
+                {f"{app}.{k}": v for k, v in mapping.items() if k != v}
+            )
+        if not all_hints:
+            return {}
+        # Pick one hint deterministically — sorted for reproducibility
+        rng = random.Random(self._seed)
+        key = rng.choice(sorted(all_hints.keys()))
+        return {key: all_hints[key]}
 
     def get_all_changes(self) -> Dict[str, Dict[str, str]]:
         """Return all field changes for every app (used by UI schema drift viewer)."""

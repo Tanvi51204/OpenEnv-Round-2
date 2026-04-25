@@ -37,9 +37,9 @@ class OrgOSEnvironment:
 
         # Reward component trackers
         self._wf_score     = 0.0   # workflow completion
-        self._rule_score   = 1.0   # compliance (starts perfect, penalized on violation)
+        self._rule_score   = 0.0   # compliance — earned +0.10 per successful action
         self._schema_score = 0.0   # schema adaptation successes
-        self._efficiency   = 1.0   # degrades with failed/no-op actions
+        self._efficiency   = 0.0   # efficiency — earned +0.10 per successful action
         self._policy_score = 0.0   # policy drift handling bonus
 
     # ------------------------------------------------------------------
@@ -52,10 +52,10 @@ class OrgOSEnvironment:
         self._workflow_id  = workflow_id or self.WORKFLOWS[(self._episode_num - 1) % 3]
         self._step_count   = 0
         self._last_score   = 0.001
-        self._rule_score   = 1.0
+        self._rule_score   = 0.0
         self._wf_score     = 0.0
         self._schema_score = 0.0
-        self._efficiency   = 1.0
+        self._efficiency   = 0.0
         self._policy_score = 0.0
         self._policy_drift_applied = False
 
@@ -131,6 +131,10 @@ class OrgOSEnvironment:
                 done=False,
                 message=result.get("message", "Operation failed"),
             )
+
+        # Earn compliance + efficiency for every successful action
+        self._rule_score = min(1.0, self._rule_score + 0.10)
+        self._efficiency = min(1.0, self._efficiency + 0.10)
 
         # Schema adaptation bonus (agent used correct drifted field name)
         if result.get("schema_adapted"):
