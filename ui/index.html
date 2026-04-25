@@ -1,654 +1,2529 @@
 <!DOCTYPE html>
-<html lang="en" x-data="orgos()" x-init="init()">
+<html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>OrgOS — Multi-App Enterprise RL Environment</title>
+  <title>OrgOS — Enterprise RL Environment</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap"
+    rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
-    [x-cloak] { display: none !important; }
-
-    body { font-family: 'JetBrains Mono', 'Fira Code', monospace; }
-
-    .app-tab.active { @apply border-b-2; }
-    .step-done   { color: #22c55e; }
-    .step-active { color: #fbbf24; }
-    .step-pending{ color: #475569; }
-
-    /* Scrollbar styling */
-    ::-webkit-scrollbar { width: 4px; height: 4px; }
-    ::-webkit-scrollbar-track { background: #1e293b; }
-    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 2px; }
-
-    /* Log entry fade-in */
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; } }
-    .log-entry { animation: fadeIn 0.2s ease; }
-
-    /* Score pulse when updating */
-    @keyframes scorePulse {
-      0%, 100% { color: #38bdf8; }
-      50%       { color: #7dd3fc; }
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
     }
-    .score-updated { animation: scorePulse 0.4s ease; }
+
+    :root {
+      --font-sans: 'DM Sans', sans-serif;
+      --font-mono: 'DM Mono', monospace;
+
+      /* OrgOS neutrals */
+      --bg: #F5F6F8;
+      --surface: #FFFFFF;
+      --border: #E3E6EA;
+      --text-1: #111827;
+      --text-2: #6B7280;
+      --text-3: #9CA3AF;
+
+      /* App brand colors */
+      --jira: #0052CC;
+      --jira-light: #E9F0FF;
+      --jira-mid: #B3C8F0;
+
+      --zendesk: #03363D;
+      --zendesk-light: #E6F3F4;
+      --zendesk-mid: #B2D8DB;
+
+      --sf: #00A1E0;
+      --sf-light: #E5F6FD;
+      --sf-mid: #B3E3F8;
+
+      --wd: #FF6B35;
+      --wd-light: #FFF0EB;
+      --wd-mid: #FFD0C0;
+
+      /* Status */
+      --green: #10B981;
+      --red: #EF4444;
+      --amber: #F59E0B;
+      --violet: #7C3AED;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--bg);
+      color: var(--text-1);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    /* ---- Scrollbars ---- */
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 3px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--text-3);
+    }
+
+    /* ---- Animations ---- */
+    @keyframes fadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(6px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes pulse-dot {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.4;
+      }
+    }
+
+    @keyframes drift-in {
+      from {
+        opacity: 0;
+        transform: translateX(12px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    @keyframes checkmark {
+      from {
+        transform: scale(0) rotate(-20deg);
+        opacity: 0;
+      }
+
+      to {
+        transform: scale(1) rotate(0);
+        opacity: 1;
+      }
+    }
+
+    @keyframes score-flash {
+
+      0%,
+      100% {
+        background: transparent;
+      }
+
+      40% {
+        background: rgba(16, 185, 129, 0.12);
+      }
+    }
+
+    .fade-up {
+      animation: fadeUp 0.25s ease forwards;
+    }
+
+    .drift-in {
+      animation: drift-in 0.2s ease forwards;
+    }
+
+    .live-dot {
+      animation: pulse-dot 1.4s ease-in-out infinite;
+    }
+
+    .step-check {
+      animation: checkmark 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+
+    .score-flash {
+      animation: score-flash 0.5s ease;
+    }
+
+    [x-cloak] {
+      display: none !important;
+    }
+
+    /* ---- Top bar ---- */
+    .topbar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      height: 52px;
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      gap: 16px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo-mark {
+      width: 28px;
+      height: 28px;
+      background: linear-gradient(135deg, #111827 60%, #374151);
+      border-radius: 7px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-weight: 600;
+      font-size: 13px;
+      letter-spacing: -0.5px;
+      flex-shrink: 0;
+    }
+
+    .logo-text {
+      font-weight: 600;
+      color: var(--text-1);
+      font-size: 14px;
+      letter-spacing: -0.3px;
+    }
+
+    .logo-sub {
+      font-size: 11px;
+      color: var(--text-3);
+      font-weight: 400;
+    }
+
+    .divider {
+      width: 1px;
+      height: 20px;
+      background: var(--border);
+      flex-shrink: 0;
+    }
+
+    .wf-select {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 5px 10px;
+      font-family: var(--font-sans);
+      font-size: 12px;
+      color: var(--text-1);
+      font-weight: 500;
+      outline: none;
+      cursor: pointer;
+      appearance: none;
+      padding-right: 28px;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%236B7280' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 9px center;
+      transition: border-color 0.15s;
+    }
+
+    .wf-select:focus {
+      border-color: #6B7280;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 7px;
+      font-family: var(--font-sans);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      transition: all 0.15s;
+    }
+
+    .btn-primary {
+      background: var(--text-1);
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      background: #1F2937;
+    }
+
+    .btn-danger {
+      background: #FEE2E2;
+      color: var(--red);
+    }
+
+    .btn-danger:hover {
+      background: #FECACA;
+    }
+
+    .btn-ghost {
+      background: var(--bg);
+      color: var(--text-2);
+      border: 1px solid var(--border);
+    }
+
+    .btn-ghost:hover {
+      background: var(--border);
+      color: var(--text-1);
+    }
+
+    .btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+
+    /* ---- Three-col layout ---- */
+    .layout {
+      display: grid;
+      grid-template-columns: 260px 1fr 240px;
+      height: calc(100vh - 52px);
+      overflow: hidden;
+    }
+
+    /* ---- Left sidebar ---- */
+    .sidebar-left {
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .sidebar-section {
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .section-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-3);
+      margin-bottom: 10px;
+    }
+
+    /* Workflow steps */
+    .step-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 6px 0;
+      border-bottom: 1px solid #F9FAFB;
+    }
+
+    .step-row:last-child {
+      border-bottom: none;
+    }
+
+    .step-num {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 1.5px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--text-3);
+      flex-shrink: 0;
+      transition: all 0.2s;
+    }
+
+    .step-num.done {
+      background: var(--green);
+      border-color: var(--green);
+      color: #fff;
+    }
+
+    .step-desc {
+      font-size: 12px;
+      color: var(--text-2);
+      line-height: 1.4;
+    }
+
+    .step-desc.done {
+      color: var(--text-3);
+      text-decoration: line-through;
+    }
+
+    /* Schema drift pills */
+    .drift-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--bg);
+      border-radius: 6px;
+      padding: 5px 8px;
+      margin-bottom: 4px;
+    }
+
+    .drift-old {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--red);
+      text-decoration: line-through;
+    }
+
+    .drift-arr {
+      color: var(--text-3);
+      font-size: 11px;
+    }
+
+    .drift-new {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--green);
+      font-weight: 500;
+    }
+
+    .drift-app {
+      font-size: 10px;
+      color: var(--text-3);
+      margin-left: auto;
+    }
+
+    /* Rules */
+    .rule-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 0;
+    }
+
+    .rule-key {
+      font-size: 11px;
+      color: var(--text-2);
+    }
+
+    .rule-val {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-1);
+    }
+
+    /* ---- Center panel — App tabs ---- */
+    .center-panel {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: var(--bg);
+    }
+
+    /* App tab strip */
+    .app-tabs {
+      display: flex;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 16px;
+      gap: 2px;
+      flex-shrink: 0;
+    }
+
+    .app-tab {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 12px 14px 10px;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-2);
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+
+    .app-tab:hover {
+      color: var(--text-1);
+    }
+
+    .app-tab.active {
+      color: var(--text-1);
+      border-bottom-color: var(--text-1);
+    }
+
+    .app-tab .app-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .tab-count {
+      background: var(--bg);
+      border-radius: 10px;
+      padding: 1px 6px;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-3);
+    }
+
+    .app-tab.active .tab-count {
+      background: var(--text-1);
+      color: #fff;
+    }
+
+    /* ---- JIRA-like UI ---- */
+    .jira-header {
+      background: var(--jira);
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .jira-logo {
+      font-weight: 700;
+      font-size: 14px;
+      color: #fff;
+      letter-spacing: -0.5px;
+    }
+
+    .jira-project {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    .jira-nav {
+      display: flex;
+      gap: 4px;
+      margin-left: auto;
+    }
+
+    .jira-nav-item {
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.8);
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+
+    .jira-nav-item:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .jira-board {
+      padding: 20px;
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .jira-board-cols {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .jira-col-header {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-2);
+      padding: 8px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .jira-col-count {
+      background: var(--border);
+      border-radius: 10px;
+      padding: 1px 7px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .jira-col-body {
+      background: #F4F5F7;
+      border-radius: 8px;
+      min-height: 200px;
+      padding: 8px;
+    }
+
+    .jira-card {
+      background: #fff;
+      border-radius: 6px;
+      padding: 10px 12px;
+      margin-bottom: 6px;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: box-shadow 0.15s;
+    }
+
+    .jira-card:hover {
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+
+    .jira-card.highlighted {
+      border-color: var(--jira);
+      box-shadow: 0 0 0 2px rgba(0, 82, 204, 0.15);
+    }
+
+    .jira-card-title {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-1);
+      margin-bottom: 8px;
+      line-height: 1.4;
+    }
+
+    .jira-card-meta {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .jira-id {
+      font-size: 10px;
+      font-family: var(--font-mono);
+      color: var(--text-3);
+    }
+
+    .priority-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .p0 {
+      background: var(--red);
+    }
+
+    .p1 {
+      background: var(--amber);
+    }
+
+    .p2 {
+      background: var(--green);
+    }
+
+    .jira-assignee {
+      margin-left: auto;
+      width: 20px;
+      height: 20px;
+      background: var(--jira-light);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+      font-weight: 600;
+      color: var(--jira);
+    }
+
+    /* ---- ZENDESK-like UI ---- */
+    .zd-header {
+      background: var(--zendesk);
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .zd-logo {
+      font-weight: 700;
+      font-size: 14px;
+      color: #fff;
+    }
+
+    .zd-search {
+      flex: 1;
+      max-width: 320px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 6px;
+      padding: 5px 12px;
+      font-family: var(--font-sans);
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.8);
+      outline: none;
+    }
+
+    .zd-search::placeholder {
+      color: rgba(255, 255, 255, 0.4);
+    }
+
+    .zd-layout {
+      display: grid;
+      grid-template-columns: 200px 1fr;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    .zd-sidebar {
+      background: #F8FAFB;
+      border-right: 1px solid var(--border);
+      padding: 12px 0;
+      overflow-y: auto;
+    }
+
+    .zd-nav-group {
+      margin-bottom: 16px;
+    }
+
+    .zd-nav-title {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--text-3);
+      padding: 4px 16px 6px;
+    }
+
+    .zd-nav-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 16px;
+      font-size: 12px;
+      color: var(--text-2);
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+
+    .zd-nav-item:hover,
+    .zd-nav-item.active {
+      background: var(--zendesk-light);
+      color: var(--zendesk);
+    }
+
+    .zd-count {
+      font-size: 11px;
+      font-weight: 600;
+      background: var(--zendesk-mid);
+      color: var(--zendesk);
+      border-radius: 10px;
+      padding: 1px 6px;
+    }
+
+    .zd-tickets {
+      padding: 16px;
+      overflow-y: auto;
+    }
+
+    .zd-ticket-row {
+      display: grid;
+      grid-template-columns: 60px 1fr 80px 90px 80px;
+      gap: 12px;
+      align-items: center;
+      padding: 10px 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      margin-bottom: 4px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: box-shadow 0.15s;
+    }
+
+    .zd-ticket-row:hover {
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    }
+
+    .zd-ticket-row.highlighted {
+      border-color: var(--zendesk);
+    }
+
+    .zd-tid {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-3);
+    }
+
+    .zd-subject {
+      font-weight: 500;
+      color: var(--text-1);
+    }
+
+    .zd-urgency {
+      text-align: center;
+    }
+
+    .urgency-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .urg-high {
+      background: #FEE2E2;
+      color: var(--red);
+    }
+
+    .urg-medium {
+      background: #FEF3C7;
+      color: #92400E;
+    }
+
+    .urg-low {
+      background: #D1FAE5;
+      color: #065F46;
+    }
+
+    .zd-agent {
+      font-size: 11px;
+      color: var(--text-2);
+    }
+
+    .zd-status {
+      text-align: center;
+    }
+
+    .status-badge {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .status-open {
+      background: var(--amber);
+    }
+
+    .status-pending {
+      background: #818CF8;
+    }
+
+    .status-resolved {
+      background: var(--green);
+    }
+
+    .status-new {
+      background: var(--red);
+    }
+
+    /* ---- SALESFORCE-like UI ---- */
+    .sf-header {
+      background: var(--sf);
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .sf-logo {
+      font-weight: 700;
+      font-size: 14px;
+      color: #fff;
+      letter-spacing: -0.3px;
+    }
+
+    .sf-tabs {
+      display: flex;
+      gap: 2px;
+    }
+
+    .sf-tab {
+      padding: 4px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.8);
+      cursor: pointer;
+    }
+
+    .sf-tab.active,
+    .sf-tab:hover {
+      background: rgba(255, 255, 255, 0.15);
+      color: #fff;
+    }
+
+    .sf-body {
+      padding: 20px;
+      overflow-y: auto;
+    }
+
+    .sf-pipeline {
+      margin-bottom: 20px;
+    }
+
+    .sf-pipeline-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-1);
+      margin-bottom: 10px;
+    }
+
+    .sf-stages {
+      display: flex;
+      gap: 0;
+      margin-bottom: 16px;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .sf-stage {
+      flex: 1;
+      padding: 6px 8px;
+      background: var(--sf-light);
+      border-right: 1px solid #fff;
+      text-align: center;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--sf);
+      position: relative;
+    }
+
+    .sf-stage.active {
+      background: var(--sf);
+      color: #fff;
+    }
+
+    .sf-stage:last-child {
+      border-right: none;
+    }
+
+    .sf-account-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 16px;
+      margin-bottom: 8px;
+      display: grid;
+      grid-template-columns: 36px 1fr auto;
+      gap: 12px;
+      align-items: center;
+      cursor: pointer;
+      transition: box-shadow 0.15s;
+    }
+
+    .sf-account-card:hover {
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    }
+
+    .sf-account-card.highlighted {
+      border-color: var(--sf);
+      box-shadow: 0 0 0 2px rgba(0, 161, 224, 0.15);
+    }
+
+    .sf-avatar {
+      width: 36px;
+      height: 36px;
+      background: var(--sf-light);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--sf);
+    }
+
+    .sf-company {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-1);
+    }
+
+    .sf-meta {
+      font-size: 11px;
+      color: var(--text-2);
+      margin-top: 2px;
+    }
+
+    .health-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 4px;
+    }
+
+    .health-green {
+      background: var(--green);
+    }
+
+    .health-yellow {
+      background: var(--amber);
+    }
+
+    .health-red {
+      background: var(--red);
+    }
+
+    .sf-arr {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-1);
+    }
+
+    /* ---- WORKDAY-like UI ---- */
+    .wd-header {
+      background: var(--wd);
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .wd-logo {
+      font-weight: 700;
+      font-size: 14px;
+      color: #fff;
+    }
+
+    .wd-tagline {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    .wd-body {
+      padding: 20px;
+      overflow-y: auto;
+    }
+
+    .wd-section-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-1);
+      margin-bottom: 10px;
+    }
+
+    .wd-tasks-header {
+      display: grid;
+      grid-template-columns: 1fr 100px 80px 80px;
+      gap: 12px;
+      padding: 6px 14px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--text-3);
+    }
+
+    .wd-task-row {
+      display: grid;
+      grid-template-columns: 1fr 100px 80px 80px;
+      gap: 12px;
+      padding: 10px 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      margin-bottom: 4px;
+      font-size: 12px;
+      align-items: center;
+      cursor: pointer;
+      transition: box-shadow 0.15s;
+    }
+
+    .wd-task-row:hover {
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    }
+
+    .wd-task-row.highlighted {
+      border-color: var(--wd);
+    }
+
+    .wd-emp {
+      font-weight: 500;
+      color: var(--text-1);
+    }
+
+    .wd-dept {
+      font-size: 11px;
+      color: var(--text-2);
+    }
+
+    .wd-level {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-2);
+    }
+
+    .wd-stat-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .wd-stat {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+    }
+
+    .wd-stat-val {
+      font-size: 22px;
+      font-weight: 600;
+      color: var(--text-1);
+    }
+
+    .wd-stat-label {
+      font-size: 11px;
+      color: var(--text-2);
+      margin-top: 2px;
+    }
+
+    /* ---- Agent log in center ---- */
+    .agent-log {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      overflow: hidden;
+      min-height: 200px;
+      max-height: 280px;
+    }
+
+    .log-header {
+      padding: 8px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .log-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--text-3);
+    }
+
+    .log-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 16px;
+    }
+
+    .log-row {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      padding: 6px 0;
+      border-bottom: 1px solid #F9FAFB;
+      font-size: 11.5px;
+      animation: fadeUp 0.2s ease;
+    }
+
+    .log-row:last-child {
+      border-bottom: none;
+    }
+
+    .log-step {
+      font-family: var(--font-mono);
+      color: var(--text-3);
+      width: 28px;
+      text-align: right;
+      flex-shrink: 0;
+      padding-top: 1px;
+    }
+
+    .log-indicator {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      margin-top: 4px;
+      flex-shrink: 0;
+    }
+
+    .ind-success {
+      background: var(--green);
+    }
+
+    .ind-error {
+      background: var(--red);
+    }
+
+    .ind-info {
+      background: #60A5FA;
+    }
+
+    .ind-reset {
+      background: var(--text-3);
+    }
+
+    .log-body {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .log-tags {
+      display: flex;
+      gap: 5px;
+      flex-wrap: wrap;
+      margin-bottom: 2px;
+    }
+
+    .log-app-tag {
+      padding: 1px 7px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .tag-jira {
+      background: var(--jira-light);
+      color: var(--jira);
+    }
+
+    .tag-zendesk {
+      background: var(--zendesk-light);
+      color: var(--zendesk);
+    }
+
+    .tag-salesforce {
+      background: var(--sf-light);
+      color: #0070A0;
+    }
+
+    .tag-workday {
+      background: var(--wd-light);
+      color: #C04A1A;
+    }
+
+    .log-op {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-2);
+    }
+
+    .log-reward {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 500;
+    }
+
+    .log-msg {
+      color: var(--text-2);
+      font-size: 11px;
+      line-height: 1.4;
+    }
+
+    /* ---- Right sidebar ---- */
+    .sidebar-right {
+      background: var(--surface);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Score gauge */
+    .score-block {
+      padding: 20px 16px 16px;
+      border-bottom: 1px solid var(--border);
+      text-align: center;
+    }
+
+    .score-gauge-wrap {
+      position: relative;
+      width: 110px;
+      height: 110px;
+      margin: 0 auto 10px;
+    }
+
+    .score-gauge-wrap canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+
+    .score-center {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .score-val {
+      font-size: 22px;
+      font-weight: 600;
+      color: var(--text-1);
+      line-height: 1;
+    }
+
+    .score-sub {
+      font-size: 10px;
+      color: var(--text-3);
+      margin-top: 2px;
+    }
+
+    /* Breakdown bars */
+    .breakdown-block {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .breakdown-row {
+      margin-bottom: 9px;
+    }
+
+    .breakdown-label-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 3px;
+    }
+
+    .breakdown-label {
+      font-size: 11px;
+      color: var(--text-2);
+    }
+
+    .breakdown-pct {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--text-1);
+      font-weight: 500;
+    }
+
+    .bar-track {
+      height: 4px;
+      background: var(--bg);
+      border-radius: 2px;
+    }
+
+    .bar-fill {
+      height: 4px;
+      border-radius: 2px;
+      transition: width 0.4s ease;
+    }
+
+    /* Episode stats */
+    .stats-block {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 3px 0;
+    }
+
+    .stat-label {
+      font-size: 11px;
+      color: var(--text-2);
+    }
+
+    .stat-val {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      font-weight: 500;
+      color: var(--text-1);
+    }
+
+    /* Violations */
+    .violations-block {
+      padding: 14px 16px;
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .violation-item {
+      font-size: 11px;
+      color: var(--red);
+      padding: 4px 0;
+      border-bottom: 1px solid #FEE2E2;
+      line-height: 1.4;
+    }
+
+    .violation-item:last-child {
+      border-bottom: none;
+    }
+
+    /* Policy drift banner */
+    .drift-banner {
+      background: linear-gradient(90deg, #FFFBEB, #FEF3C7);
+      border: 1px solid #FDE68A;
+      border-radius: 7px;
+      padding: 8px 12px;
+      margin: 12px 16px 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      animation: fadeUp 0.3s ease;
+    }
+
+    .drift-banner-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--amber);
+      flex-shrink: 0;
+    }
+
+    .drift-banner-text {
+      font-size: 11px;
+      font-weight: 500;
+      color: #92400E;
+    }
+
+    /* App content area (flex-1 scrollable) */
+    .app-content {
+      flex: 1;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .app-inner {
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    /* Live indicator */
+    .live-badge {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      color: var(--green);
+      font-weight: 500;
+    }
+
+    .live-badge-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+    }
+
+    /* Schema version pills in header */
+    .schema-pill {
+      background: rgba(255, 255, 255, 0.18);
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-size: 10px;
+      color: rgba(255, 255, 255, 0.9);
+      font-family: var(--font-mono);
+    }
   </style>
 </head>
 
-<body class="bg-slate-950 text-slate-300 min-h-screen">
+<body x-data="orgos()" x-init="init()">
 
-  <!-- ================================================================
-       TOP BAR
-       ================================================================ -->
-  <header class="bg-slate-900 border-b border-slate-800 px-4 py-3 flex items-center gap-4">
-    <!-- Logo -->
-    <div class="flex items-center gap-2 mr-4">
-      <div class="w-7 h-7 rounded bg-sky-500 flex items-center justify-center text-white font-bold text-sm">O</div>
-      <span class="text-white font-semibold text-sm tracking-wide">OrgOS</span>
-      <span class="text-slate-500 text-xs">Enterprise RL Environment</span>
+  <!-- TOP BAR -->
+  <header class="topbar">
+    <div class="logo-mark">OS</div>
+    <div>
+      <div class="logo-text">OrgOS</div>
     </div>
+    <div class="logo-sub">Enterprise RL Environment</div>
 
-    <!-- Workflow selector -->
-    <div class="flex items-center gap-2">
-      <label class="text-xs text-slate-500 uppercase tracking-widest">Workflow</label>
-      <select x-model="selectedWorkflow"
-              class="bg-slate-800 border border-slate-700 text-slate-200 text-xs rounded px-2 py-1 focus:outline-none focus:border-sky-500">
-        <option value="A">A — Customer Bug Fix</option>
-        <option value="B">B — Employee Onboarding</option>
-        <option value="C">C — Churn Risk Alert</option>
-      </select>
-    </div>
+    <div class="divider"></div>
 
-    <!-- Run / Stop button -->
-    <button @click="isRunning ? stopAgent() : startAgent()"
-            :class="isRunning
-              ? 'bg-red-600 hover:bg-red-500 text-white'
-              : 'bg-sky-600 hover:bg-sky-500 text-white'"
-            class="px-3 py-1.5 rounded text-xs font-medium transition-colors flex items-center gap-1.5">
-      <svg x-show="!isRunning" xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="currentColor" viewBox="0 0 16 16">
-        <path d="M11.596 8.697l-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z"/>
+    <label style="font-size:11px;color:var(--text-3);font-weight:500;">Workflow</label>
+    <select class="wf-select" x-model="selectedWorkflow">
+      <option value="A">A — Customer Bug Fix</option>
+      <option value="B">B — Employee Onboarding</option>
+      <option value="C">C — Churn Risk Alert</option>
+    </select>
+
+    <button class="btn btn-ghost" @click="resetEpisode()" :disabled="isRunning">Reset</button>
+
+    <button class="btn" :class="isRunning ? 'btn-danger' : 'btn-primary'"
+      @click="isRunning ? stopAgent() : startAgent()">
+      <svg x-show="!isRunning" width="10" height="10" fill="currentColor" viewBox="0 0 16 16">
+        <path
+          d="M11.596 8.697l-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z" />
       </svg>
-      <svg x-show="isRunning" xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="currentColor" viewBox="0 0 16 16">
-        <path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5zm5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5z"/>
+      <svg x-show="isRunning" width="10" height="10" fill="currentColor" viewBox="0 0 16 16">
+        <path
+          d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5zm5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5z" />
       </svg>
       <span x-text="isRunning ? 'Stop' : 'Run Agent'"></span>
     </button>
 
-    <!-- Reset button -->
-    <button @click="resetEpisode()"
-            :disabled="isRunning"
-            class="px-3 py-1.5 rounded text-xs font-medium bg-slate-700 hover:bg-slate-600 text-slate-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-      Reset
-    </button>
+    <div class="divider"></div>
 
-    <!-- Status indicators -->
-    <div class="ml-auto flex items-center gap-4">
-      <!-- Score -->
-      <div class="text-right">
-        <div class="text-xs text-slate-500 uppercase tracking-widest">Score</div>
-        <div class="text-sky-400 font-bold text-base tabular-nums"
-             :class="scoreUpdated ? 'score-updated' : ''"
-             x-text="currentScore.toFixed(4)"></div>
-      </div>
-      <!-- Steps -->
-      <div class="text-right">
-        <div class="text-xs text-slate-500 uppercase tracking-widest">Step</div>
-        <div class="text-slate-200 font-bold text-base tabular-nums"
-             x-text="stepCount + ' / ' + maxSteps"></div>
-      </div>
-      <!-- Policy drift badge -->
-      <div x-show="policyDriftActive"
-           class="px-2 py-0.5 rounded-full text-xs bg-amber-900 text-amber-300 border border-amber-700">
-        Policy Drift
-      </div>
-      <!-- Health dot -->
-      <div class="flex items-center gap-1.5">
-        <div class="w-2 h-2 rounded-full"
-             :class="serverHealthy ? 'bg-green-500' : 'bg-red-500'"></div>
-        <span class="text-xs text-slate-500" x-text="serverHealthy ? 'Live' : 'Offline'"></span>
-      </div>
+    <!-- Score in topbar -->
+    <div style="display:flex;align-items:baseline;gap:5px;">
+      <span style="font-size:11px;color:var(--text-3);font-weight:500;">Score</span>
+      <span style="font-size:18px;font-weight:600;color:var(--text-1);font-family:var(--font-mono);"
+        :class="scoreUpdated ? 'score-flash' : ''" x-text="currentScore.toFixed(3)"></span>
+    </div>
+
+    <div style="display:flex;align-items:baseline;gap:5px;">
+      <span style="font-size:11px;color:var(--text-3);font-weight:500;">Step</span>
+      <span style="font-size:18px;font-weight:600;color:var(--text-1);font-family:var(--font-mono);"
+        x-text="stepCount + '/' + maxSteps"></span>
+    </div>
+
+    <div x-show="policyDriftActive" class="badge" style="background:#FEF3C7;color:#92400E;border:1px solid #FDE68A;">
+      Policy Drift Active
+    </div>
+
+    <div class="ml-auto" style="display:flex;align-items:center;gap:6px;">
+      <div class="live-badge-dot" :class="serverHealthy ? 'live-dot' : ''"
+        :style="serverHealthy ? '' : 'background:var(--red)'"></div>
+      <span style="font-size:11px;" :class="serverHealthy ? 'live-badge' : ''"
+        :style="!serverHealthy ? 'color:var(--red);font-size:11px;' : ''"
+        x-text="serverHealthy ? 'Connected' : 'Offline'"></span>
     </div>
   </header>
 
-  <!-- ================================================================
-       MAIN LAYOUT  (3-column)
-       ================================================================ -->
-  <div class="flex h-[calc(100vh-52px)]">
+  <!-- THREE-COLUMN LAYOUT -->
+  <div class="layout">
 
-    <!-- ============================================================
-         LEFT: Workflow Progress + Schema Hints + Rules
-         ============================================================ -->
-    <aside class="w-72 flex-shrink-0 bg-slate-900 border-r border-slate-800 flex flex-col overflow-hidden">
+    <!-- LEFT SIDEBAR: Workflow + Schema + Rules -->
+    <aside class="sidebar-left">
 
-      <!-- Workflow goal -->
-      <div class="px-4 pt-4 pb-3 border-b border-slate-800">
-        <div class="text-xs text-slate-500 uppercase tracking-widest mb-1">Goal</div>
-        <p class="text-slate-300 text-xs leading-relaxed" x-text="workflowGoal || 'Reset to start an episode.'"></p>
-      </div>
-
-      <!-- Step tracker -->
-      <div class="px-4 pt-3 pb-2 border-b border-slate-800 flex-shrink-0">
-        <div class="text-xs text-slate-500 uppercase tracking-widest mb-2">
-          Workflow Steps
-          <span class="ml-1 text-sky-400 font-bold"
-                x-text="'(' + completedSteps.length + '/' + totalSteps + ')'"></span>
+      <!-- Workflow progress -->
+      <div class="sidebar-section" style="flex:1;overflow-y:auto;">
+        <div class="section-label">
+          Workflow
+          <span style="color:var(--text-1);font-weight:700;" x-text="workflowId || selectedWorkflow"></span>
+          Progress
         </div>
+        <div style="margin-bottom:12px;">
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-2);margin-bottom:5px;">
+            <span x-text="completedSteps.length + ' of ' + totalSteps + ' steps done'"></span>
+            <span style="font-weight:600;color:var(--text-1);"
+              x-text="Math.round(completedSteps.length/Math.max(totalSteps,1)*100) + '%'"></span>
+          </div>
+          <div style="height:4px;background:var(--bg);border-radius:2px;">
+            <div style="height:4px;background:var(--green);border-radius:2px;transition:width 0.4s ease;"
+              :style="'width:' + (completedSteps.length/Math.max(totalSteps,1)*100) + '%'"></div>
+          </div>
+        </div>
+        <div x-show="workflowGoal"
+          style="font-size:11px;color:var(--text-2);line-height:1.5;margin-bottom:12px;padding:8px;background:var(--bg);border-radius:6px;"
+          x-text="workflowGoal"></div>
+
         <template x-for="(step, i) in allSteps" :key="i">
-          <div class="flex items-start gap-2 py-1">
-            <!-- Icon -->
-            <div class="mt-0.5 w-4 h-4 flex-shrink-0">
+          <div class="step-row">
+            <div class="step-num" :class="completedSteps.includes(step.id) ? 'done' : ''">
               <template x-if="completedSteps.includes(step.id)">
-                <svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                <svg class="step-check" width="10" height="10" fill="currentColor" viewBox="0 0 16 16">
+                  <path
+                    d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z" />
                 </svg>
               </template>
               <template x-if="!completedSteps.includes(step.id)">
-                <div class="w-4 h-4 rounded-full border border-slate-600 flex items-center justify-center">
-                  <span class="text-[9px] text-slate-500" x-text="step.id"></span>
-                </div>
+                <span x-text="step.id"></span>
               </template>
             </div>
-            <!-- Description -->
-            <span class="text-xs leading-tight"
-                  :class="completedSteps.includes(step.id)
-                    ? 'text-green-400 line-through decoration-green-600'
-                    : 'text-slate-400'"
-                  x-text="step.description"></span>
+            <span class="step-desc" :class="completedSteps.includes(step.id) ? 'done' : ''"
+              x-text="step.description"></span>
           </div>
         </template>
       </div>
 
-      <!-- Schema hints -->
-      <div class="px-4 pt-3 pb-3 border-b border-slate-800 flex-shrink-0">
-        <div class="text-xs text-slate-500 uppercase tracking-widest mb-2">Schema Hints</div>
-        <template x-if="Object.keys(schemaHints).length === 0">
-          <p class="text-xs text-slate-600">No drift — canonical names in effect.</p>
-        </template>
+      <!-- Schema drift -->
+      <div class="sidebar-section">
+        <div class="section-label">Schema Drift</div>
+        <div x-show="Object.keys(schemaHints).length === 0" style="font-size:11px;color:var(--text-3);">
+          No drift — v1 canonical names active.
+        </div>
         <template x-for="[field, drifted] in Object.entries(schemaHints)" :key="field">
-          <div class="flex items-center gap-1 py-0.5 font-mono text-[11px]">
-            <span class="text-red-400 line-through" x-text="field.split('.')[1] ?? field"></span>
-            <span class="text-slate-600">→</span>
-            <span class="text-green-400" x-text="drifted"></span>
-            <span class="text-slate-600 text-[10px]" x-text="'(' + (field.split('.')[0] ?? '') + ')'"></span>
+          <div class="drift-pill">
+            <span class="drift-old" x-text="field.split('.')[1] ?? field"></span>
+            <span class="drift-arr">→</span>
+            <span class="drift-new" x-text="drifted"></span>
+            <span class="drift-app" x-text="field.split('.')[0] ?? ''"></span>
           </div>
         </template>
       </div>
 
       <!-- Active rules -->
-      <div class="px-4 pt-3 pb-3 flex-shrink-0">
-        <div class="text-xs text-slate-500 uppercase tracking-widest mb-2">Active Rules</div>
+      <div class="sidebar-section">
+        <div class="section-label">Active Rules</div>
         <template x-for="[key, val] in Object.entries(activeRules)" :key="key">
-          <div class="flex justify-between py-0.5 text-[11px]">
-            <span class="text-slate-500" x-text="key.replace(/_/g,' ')"></span>
-            <span class="text-slate-300 font-bold tabular-nums" x-text="val"></span>
+          <div class="rule-row">
+            <span class="rule-key" x-text="key.replace(/_/g,' ')"></span>
+            <span class="rule-val" x-text="val"></span>
+          </div>
+        </template>
+        <div x-show="Object.keys(activeRules).length === 0" style="font-size:11px;color:var(--text-3);">Reset to load
+          rules.</div>
+      </div>
+
+      <!-- Schema versions -->
+      <div class="sidebar-section" style="border-bottom:none;">
+        <div class="section-label">Schema Versions</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <template x-for="[app, ver] in Object.entries(schemaVersions)" :key="app">
+            <div
+              style="background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:3px 8px;font-size:11px;">
+              <span style="color:var(--text-3);" x-text="app.charAt(0).toUpperCase()+app.slice(1,3)"></span>
+              <span style="font-family:var(--font-mono);font-weight:600;color:var(--text-1);margin-left:4px;"
+                x-text="ver"></span>
+            </div>
+          </template>
+          <div x-show="Object.keys(schemaVersions).length === 0" style="font-size:11px;color:var(--text-3);">—</div>
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- CENTER: App UIs + Agent Log -->
+    <main class="center-panel">
+
+      <!-- Policy drift banner -->
+      <div x-show="policyDriftActive" class="drift-banner" style="flex-shrink:0;">
+        <div class="drift-banner-dot live-dot"></div>
+        <span class="drift-banner-text">Policy drift active — SLA and approval thresholds have tightened this
+          episode.</span>
+      </div>
+
+      <!-- App tab strip -->
+      <div class="app-tabs" style="flex-shrink:0;">
+        <template x-for="tab in appTabs" :key="tab.id">
+          <div class="app-tab" :class="activeAppTab === tab.id ? 'active' : ''" @click="activeAppTab = tab.id">
+            <div class="app-dot" :style="'background:' + tab.color"></div>
+            <span x-text="tab.label"></span>
+            <template x-if="appOpenCounts[tab.id] > 0">
+              <span class="tab-count" x-text="appOpenCounts[tab.id]"></span>
+            </template>
           </div>
         </template>
       </div>
-    </aside>
 
-    <!-- ============================================================
-         CENTER: App State Tabs + Agent Log
-         ============================================================ -->
-    <main class="flex-1 flex flex-col overflow-hidden min-w-0">
+      <!-- App content views -->
+      <div class="app-content">
+        <div class="app-inner">
 
-      <!-- App state tabs -->
-      <div class="bg-slate-900 border-b border-slate-800 flex-shrink-0">
-        <!-- Tab headers -->
-        <div class="flex">
-          <template x-for="tab in appTabs" :key="tab.id">
-            <button @click="activeAppTab = tab.id"
-                    :class="activeAppTab === tab.id
-                      ? 'border-b-2 border-sky-500 text-sky-400 bg-slate-950'
-                      : 'text-slate-500 hover:text-slate-300'"
-                    class="px-4 py-2 text-xs font-medium transition-colors flex items-center gap-1.5">
-              <span x-text="tab.icon"></span>
-              <span x-text="tab.label"></span>
-              <!-- Open items badge -->
-              <template x-if="appOpenCounts[tab.id] > 0">
-                <span class="px-1.5 py-0.5 rounded-full text-[10px] font-bold"
-                      :class="activeAppTab === tab.id ? 'bg-sky-900 text-sky-300' : 'bg-slate-700 text-slate-400'"
-                      x-text="appOpenCounts[tab.id]"></span>
+          <!-- ======================== JIRA ======================== -->
+          <div x-show="activeAppTab === 'jira'">
+            <div class="jira-header">
+              <span class="jira-logo">Jira</span>
+              <span class="jira-project"
+                style="background:rgba(255,255,255,0.15);border-radius:4px;padding:2px 8px;font-size:11px;">OrgOS /
+                Engineering</span>
+              <template x-for="[app, ver] in Object.entries(schemaVersions)" :key="app">
+                <span x-show="app === 'jira'" class="schema-pill" x-text="'schema ' + ver"></span>
               </template>
-            </button>
-          </template>
-        </div>
-        <!-- Tab content -->
-        <div class="p-3 max-h-48 overflow-y-auto">
-          <template x-for="tab in appTabs" :key="tab.id">
-            <pre x-show="activeAppTab === tab.id"
-                 class="text-[11px] font-mono text-slate-300 whitespace-pre-wrap leading-relaxed"
-                 x-text="appStates[tab.id] || 'No data yet — reset to load.'"></pre>
-          </template>
-        </div>
-      </div>
+              <div class="jira-nav" style="margin-left:auto;">
+                <div class="jira-nav-item">Board</div>
+                <div class="jira-nav-item">Backlog</div>
+                <div class="jira-nav-item">Reports</div>
+              </div>
+            </div>
+            <div class="jira-board">
+              <div style="font-size:12px;font-weight:600;color:var(--text-1);margin-bottom:14px;">Sprint Board</div>
+              <div class="jira-board-cols">
+                <!-- TO DO -->
+                <div>
+                  <div class="jira-col-header">
+                    To Do
+                    <span class="jira-col-count" x-text="jiraCards.filter(c=>c.status==='open').length"></span>
+                  </div>
+                  <div class="jira-col-body">
+                    <template x-for="card in jiraCards.filter(c=>c.status==='open')" :key="card.id">
+                      <div class="jira-card" :class="card.highlighted ? 'highlighted' : ''">
+                        <div class="jira-card-title" x-text="card.title"></div>
+                        <div class="jira-card-meta">
+                          <div class="priority-dot"
+                            :class="card.priority === 'p0' ? 'p0' : card.priority === 'p1' ? 'p1' : 'p2'"></div>
+                          <span class="jira-id" x-text="card.id"></span>
+                          <template x-if="card.linked_zendesk">
+                            <span
+                              style="font-size:10px;background:var(--zendesk-light);color:var(--zendesk);border-radius:3px;padding:1px 5px;font-weight:500;"
+                              x-text="card.linked_zendesk"></span>
+                          </template>
+                          <div class="jira-assignee"
+                            x-text="card.assignee ? card.assignee.charAt(0).toUpperCase() : '?'"
+                            :style="card.assignee ? '' : 'color:var(--text-3);'"></div>
+                        </div>
+                      </div>
+                    </template>
+                    <div x-show="jiraCards.filter(c=>c.status==='open').length === 0"
+                      style="font-size:11px;color:var(--text-3);padding:12px;text-align:center;">No open issues</div>
+                  </div>
+                </div>
+                <!-- IN PROGRESS -->
+                <div>
+                  <div class="jira-col-header">
+                    In Progress
+                    <span class="jira-col-count" x-text="jiraCards.filter(c=>c.status==='in_progress').length"></span>
+                  </div>
+                  <div class="jira-col-body">
+                    <template x-for="card in jiraCards.filter(c=>c.status==='in_progress')" :key="card.id">
+                      <div class="jira-card" :class="card.highlighted ? 'highlighted' : ''">
+                        <div class="jira-card-title" x-text="card.title"></div>
+                        <div class="jira-card-meta">
+                          <div class="priority-dot"
+                            :class="card.priority === 'p0' ? 'p0' : card.priority === 'p1' ? 'p1' : 'p2'"></div>
+                          <span class="jira-id" x-text="card.id"></span>
+                          <div class="jira-assignee"
+                            x-text="card.assignee ? card.assignee.charAt(0).toUpperCase() : '?'"></div>
+                        </div>
+                      </div>
+                    </template>
+                    <div x-show="jiraCards.filter(c=>c.status==='in_progress').length === 0"
+                      style="font-size:11px;color:var(--text-3);padding:12px;text-align:center;">Nothing in progress
+                    </div>
+                  </div>
+                </div>
+                <!-- DONE -->
+                <div>
+                  <div class="jira-col-header" style="color:var(--green);">
+                    Done
+                    <span class="jira-col-count"
+                      x-text="jiraCards.filter(c=>c.status==='closed'||c.status==='done').length"></span>
+                  </div>
+                  <div class="jira-col-body">
+                    <template x-for="card in jiraCards.filter(c=>c.status==='closed'||c.status==='done')"
+                      :key="card.id">
+                      <div class="jira-card" style="opacity:0.7;">
+                        <div class="jira-card-title" style="text-decoration:line-through;" x-text="card.title"></div>
+                        <div class="jira-card-meta">
+                          <span class="jira-id" x-text="card.id"></span>
+                        </div>
+                      </div>
+                    </template>
+                    <div x-show="jiraCards.filter(c=>c.status==='closed'||c.status==='done').length === 0"
+                      style="font-size:11px;color:var(--text-3);padding:12px;text-align:center;">Nothing done yet</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
 
-      <!-- Agent action log -->
-      <div class="flex-1 overflow-hidden flex flex-col">
-        <div class="px-4 py-2 border-b border-slate-800 flex items-center justify-between bg-slate-900 flex-shrink-0">
-          <span class="text-xs text-slate-500 uppercase tracking-widest">Agent Log</span>
-          <button @click="actionLog = []" class="text-xs text-slate-600 hover:text-slate-400">Clear</button>
+          <!-- ======================== ZENDESK ======================== -->
+          <div x-show="activeAppTab === 'zendesk'">
+            <div class="zd-header">
+              <span class="zd-logo">Zendesk</span>
+              <input class="zd-search" placeholder="Search tickets..." readonly />
+              <template x-for="[app, ver] in Object.entries(schemaVersions)" :key="app">
+                <span x-show="app === 'zendesk'" class="schema-pill" x-text="'schema ' + ver"></span>
+              </template>
+              <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
+                <div class="badge" style="background:rgba(255,255,255,0.15);color:#fff;font-size:10px;"
+                  x-text="zdTickets.filter(t=>t.state==='open'||t.state==='new').length + ' open'"></div>
+              </div>
+            </div>
+            <div class="zd-layout" style="height:calc(100% - 42px);">
+              <div class="zd-sidebar">
+                <div class="zd-nav-group">
+                  <div class="zd-nav-title">Views</div>
+                  <div class="zd-nav-item active">
+                    All tickets
+                    <span class="zd-count" x-text="zdTickets.length"></span>
+                  </div>
+                  <div class="zd-nav-item">
+                    Open
+                    <span class="zd-count" x-text="zdTickets.filter(t=>t.state==='open').length"></span>
+                  </div>
+                  <div class="zd-nav-item">
+                    New
+                    <span class="zd-count" x-text="zdTickets.filter(t=>t.state==='new').length"></span>
+                  </div>
+                  <div class="zd-nav-item">Pending</div>
+                  <div class="zd-nav-item">Resolved</div>
+                </div>
+                <div class="zd-nav-group">
+                  <div class="zd-nav-title">Manage</div>
+                  <div class="zd-nav-item">Agents</div>
+                  <div class="zd-nav-item">Reports</div>
+                  <div class="zd-nav-item">Settings</div>
+                </div>
+              </div>
+              <div class="zd-tickets">
+                <!-- Header row -->
+                <div
+                  style="display:grid;grid-template-columns:60px 1fr 80px 90px 80px;gap:12px;padding:6px 14px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;color:var(--text-3);margin-bottom:4px;">
+                  <span>ID</span><span>Subject</span><span
+                    style="text-align:center;">Urgency</span><span>Agent</span><span
+                    style="text-align:center;">Status</span>
+                </div>
+                <template x-for="ticket in zdTickets" :key="ticket.id">
+                  <div class="zd-ticket-row" :class="ticket.highlighted ? 'highlighted' : ''">
+                    <span class="zd-tid" x-text="ticket.id"></span>
+                    <span class="zd-subject" x-text="ticket.subject"></span>
+                    <div class="zd-urgency">
+                      <span class="urgency-badge"
+                        :class="ticket.urgency==='p0'||ticket.urgency==='high'?'urg-high':ticket.urgency==='p1'||ticket.urgency==='medium'?'urg-medium':'urg-low'"
+                        x-text="ticket.urgency || 'p2'"></span>
+                    </div>
+                    <span class="zd-agent" x-text="ticket.agent || '—'"></span>
+                    <div class="zd-status" style="text-align:center;">
+                      <span class="status-badge"
+                        :class="ticket.state==='open'?'status-open':ticket.state==='pending'?'status-pending':ticket.state==='resolved'?'status-resolved':'status-new'"></span>
+                      <span style="font-size:10px;color:var(--text-2);margin-left:4px;"
+                        x-text="ticket.state || 'new'"></span>
+                    </div>
+                  </div>
+                </template>
+                <div x-show="zdTickets.length === 0"
+                  style="font-size:12px;color:var(--text-3);padding:24px;text-align:center;">No tickets loaded — reset
+                  to start an episode.</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ======================== SALESFORCE ======================== -->
+          <div x-show="activeAppTab === 'salesforce'">
+            <div class="sf-header">
+              <span class="sf-logo">Salesforce</span>
+              <div class="sf-tabs">
+                <div class="sf-tab active">Accounts</div>
+                <div class="sf-tab">Opportunities</div>
+                <div class="sf-tab">Pipeline</div>
+              </div>
+              <template x-for="[app, ver] in Object.entries(schemaVersions)" :key="app">
+                <span x-show="app === 'salesforce'" class="schema-pill" x-text="'schema ' + ver"></span>
+              </template>
+            </div>
+            <div class="sf-body">
+              <!-- Pipeline stages -->
+              <div class="sf-pipeline">
+                <div class="sf-pipeline-title">Deal Pipeline</div>
+                <div class="sf-stages">
+                  <div class="sf-stage">Prospect</div>
+                  <div class="sf-stage active">Qualified</div>
+                  <div class="sf-stage">Proposal</div>
+                  <div class="sf-stage">Negotiation</div>
+                  <div class="sf-stage">Closed Won</div>
+                </div>
+              </div>
+
+              <!-- Account cards -->
+              <div style="font-size:12px;font-weight:600;color:var(--text-1);margin-bottom:10px;">Accounts</div>
+              <template x-for="acct in sfAccounts" :key="acct.id">
+                <div class="sf-account-card" :class="acct.highlighted ? 'highlighted' : ''">
+                  <div class="sf-avatar" x-text="acct.name.charAt(0)"></div>
+                  <div>
+                    <div class="sf-company" x-text="acct.name"></div>
+                    <div class="sf-meta">
+                      <span class="health-dot"
+                        :class="acct.health==='green'?'health-green':acct.health==='yellow'?'health-yellow':'health-red'"></span>
+                      <span x-text="acct.stage || 'Qualified'"></span>
+                      <span style="margin:0 6px;color:var(--border);">·</span>
+                      <span x-text="acct.owner ? 'Owner: ' + acct.owner : 'Unassigned'"></span>
+                      <template x-if="acct.churn_risk">
+                        <span style="margin-left:6px;" class="badge"
+                          style="background:#FEE2E2;color:var(--red);font-size:10px;">Churn Risk</span>
+                      </template>
+                    </div>
+                  </div>
+                  <div style="text-align:right;">
+                    <div class="sf-arr" x-text="acct.arr ? '$' + (acct.arr/1000).toFixed(0) + 'K' : '—'"></div>
+                    <div style="font-size:10px;color:var(--text-3);">ARR</div>
+                  </div>
+                </div>
+              </template>
+              <div x-show="sfAccounts.length === 0"
+                style="font-size:12px;color:var(--text-3);padding:24px;text-align:center;">No accounts loaded — reset to
+                start an episode.</div>
+            </div>
+          </div>
+
+          <!-- ======================== WORKDAY ======================== -->
+          <div x-show="activeAppTab === 'workday'">
+            <div class="wd-header">
+              <span class="wd-logo">Workday</span>
+              <span class="wd-tagline">People &amp; HR Operations</span>
+              <template x-for="[app, ver] in Object.entries(schemaVersions)" :key="app">
+                <span x-show="app === 'workday'" class="schema-pill" x-text="'schema ' + ver"></span>
+              </template>
+            </div>
+            <div class="wd-body">
+              <!-- Stats -->
+              <div class="wd-stat-row">
+                <div class="wd-stat">
+                  <div class="wd-stat-val" x-text="wdEmployees.length"></div>
+                  <div class="wd-stat-label">Total Employees</div>
+                </div>
+                <div class="wd-stat">
+                  <div class="wd-stat-val" x-text="wdEmployees.filter(e=>e.status==='pending').length"></div>
+                  <div class="wd-stat-label">Pending Tasks</div>
+                </div>
+                <div class="wd-stat">
+                  <div class="wd-stat-val" x-text="slaLogged ? '1' : '0'"></div>
+                  <div class="wd-stat-label">SLA Events</div>
+                </div>
+              </div>
+
+              <!-- Employee table -->
+              <div class="wd-section-title">Employee Records</div>
+              <div class="wd-tasks-header">
+                <span>Employee</span><span>Department</span><span>Level</span><span>Status</span>
+              </div>
+              <template x-for="emp in wdEmployees" :key="emp.id">
+                <div class="wd-task-row" :class="emp.highlighted ? 'highlighted' : ''">
+                  <div>
+                    <div class="wd-emp" x-text="emp.name"></div>
+                    <div style="font-size:10px;font-family:var(--font-mono);color:var(--text-3);" x-text="emp.id"></div>
+                  </div>
+                  <span class="wd-dept" x-text="emp.department || '—'"></span>
+                  <span class="wd-level" x-text="emp.level || '—'"></span>
+                  <div>
+                    <span class="badge"
+                      :style="emp.status==='active'?'background:#D1FAE5;color:#065F46;':emp.status==='pending'?'background:#FEF3C7;color:#92400E;':'background:var(--bg);color:var(--text-2);'"
+                      x-text="emp.status || 'active'"></span>
+                  </div>
+                </div>
+              </template>
+              <div x-show="wdEmployees.length === 0"
+                style="font-size:12px;color:var(--text-3);padding:24px;text-align:center;">No employee records — reset
+                to start an episode.</div>
+            </div>
+          </div>
+
+        </div><!-- /app-inner -->
+      </div><!-- /app-content -->
+
+      <!-- AGENT LOG (bottom strip) -->
+      <div class="agent-log">
+        <div class="log-header">
+          <span class="log-title">Agent Log</span>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div x-show="isRunning" class="live-badge">
+              <div class="live-badge-dot live-dot"></div>
+              Live
+            </div>
+            <button @click="actionLog = []"
+              style="font-size:11px;color:var(--text-3);cursor:pointer;background:none;border:none;padding:0;">
+              Clear
+            </button>
+          </div>
         </div>
-        <div class="flex-1 overflow-y-auto px-4 py-3 space-y-1.5" id="log-scroll">
-          <template x-if="actionLog.length === 0">
-            <p class="text-slate-600 text-xs italic">Waiting for episode to start…</p>
-          </template>
+        <div class="log-scroll" id="log-scroll">
+          <div x-show="actionLog.length === 0" style="font-size:11px;color:var(--text-3);padding:12px 0;">
+            Waiting for episode to start…
+          </div>
           <template x-for="(entry, i) in actionLog" :key="i">
-            <div class="log-entry flex gap-3 items-start text-xs font-mono py-1 border-b border-slate-800/50">
-              <!-- Step number -->
-              <span class="text-slate-600 w-8 text-right flex-shrink-0" x-text="'#' + entry.step"></span>
-              <!-- Color dot -->
-              <span class="w-2 h-2 rounded-full flex-shrink-0 mt-0.5"
-                    :class="{
-                      'bg-green-500':  entry.type === 'success',
-                      'bg-red-500':    entry.type === 'error',
-                      'bg-amber-500':  entry.type === 'warning',
-                      'bg-sky-500':    entry.type === 'info',
-                      'bg-slate-500':  entry.type === 'reset',
-                    }"></span>
-              <!-- Content -->
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-2 flex-wrap">
+            <div class="log-row">
+              <span class="log-step" x-text="'#' + entry.step"></span>
+              <div class="log-indicator"
+                :class="entry.type==='success'?'ind-success':entry.type==='error'?'ind-error':entry.type==='reset'?'ind-reset':'ind-info'">
+              </div>
+              <div class="log-body">
+                <div class="log-tags">
                   <template x-if="entry.app">
-                    <span class="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase"
-                          :class="{
-                            'bg-violet-900 text-violet-300':  entry.app === 'jira',
-                            'bg-emerald-900 text-emerald-300': entry.app === 'zendesk',
-                            'bg-blue-900 text-blue-300':      entry.app === 'salesforce',
-                            'bg-orange-900 text-orange-300':  entry.app === 'workday',
-                          }"
-                          x-text="entry.app"></span>
+                    <span class="log-app-tag" :class="'tag-' + entry.app" x-text="entry.app"></span>
                   </template>
                   <template x-if="entry.operation">
-                    <span class="text-sky-400" x-text="entry.operation"></span>
+                    <span class="log-op" x-text="entry.operation + '()'"></span>
                   </template>
                   <template x-if="entry.reward !== undefined">
-                    <span :class="entry.reward >= 0 ? 'text-green-400' : 'text-red-400'"
-                          x-text="(entry.reward >= 0 ? '+' : '') + entry.reward.toFixed(4)"></span>
+                    <span class="log-reward" :style="entry.reward >= 0 ? 'color:var(--green)' : 'color:var(--red)'"
+                      x-text="(entry.reward >= 0 ? '+' : '') + entry.reward.toFixed(4)"></span>
                   </template>
                 </div>
-                <div class="text-slate-400 text-[11px] mt-0.5 leading-snug" x-text="entry.message"></div>
-                <template x-if="entry.argsStr">
-                  <div class="text-slate-600 text-[10px] mt-0.5 truncate" x-text="entry.argsStr"></div>
-                </template>
+                <div class="log-msg" x-text="entry.message"></div>
               </div>
             </div>
           </template>
         </div>
       </div>
+
     </main>
 
-    <!-- ============================================================
-         RIGHT: Metrics Panel
-         ============================================================ -->
-    <aside class="w-64 flex-shrink-0 bg-slate-900 border-l border-slate-800 flex flex-col overflow-hidden">
+    <!-- RIGHT SIDEBAR: Metrics -->
+    <aside class="sidebar-right">
 
-      <!-- Reward curve chart -->
-      <div class="p-4 border-b border-slate-800">
-        <div class="text-xs text-slate-500 uppercase tracking-widest mb-2">Reward Curve</div>
-        <canvas id="rewardChart" class="w-full" style="max-height:120px"></canvas>
-      </div>
-
-      <!-- Score breakdown bars -->
-      <div class="p-4 border-b border-slate-800">
-        <div class="text-xs text-slate-500 uppercase tracking-widest mb-3">Score Breakdown</div>
-        <template x-for="comp in rewardComponents" :key="comp.key">
-          <div class="mb-2">
-            <div class="flex justify-between text-[11px] mb-0.5">
-              <span class="text-slate-500" x-text="comp.label"></span>
-              <span class="text-slate-300 tabular-nums" x-text="(comp.value * 100).toFixed(0) + '%'"></span>
-            </div>
-            <div class="w-full bg-slate-800 rounded-full h-1.5">
-              <div class="h-1.5 rounded-full transition-all duration-300"
-                   :class="comp.color"
-                   :style="'width: ' + (comp.value * 100) + '%'"></div>
-            </div>
+      <!-- Score gauge -->
+      <div class="score-block">
+        <div class="section-label" style="text-align:left;">Episode Score</div>
+        <div class="score-gauge-wrap">
+          <canvas id="gaugeChart" width="110" height="110"></canvas>
+          <div class="score-center">
+            <div class="score-val" x-text="(currentScore * 100).toFixed(0)"></div>
+            <div class="score-sub">/ 100</div>
           </div>
-        </template>
-      </div>
-
-      <!-- Episode stats -->
-      <div class="p-4 border-b border-slate-800">
-        <div class="text-xs text-slate-500 uppercase tracking-widest mb-2">Episode Stats</div>
-        <div class="space-y-1">
-          <div class="flex justify-between text-[11px]">
-            <span class="text-slate-500">Violations</span>
-            <span :class="violationCount > 0 ? 'text-red-400' : 'text-green-400'"
-                  x-text="violationCount" class="font-bold tabular-nums"></span>
-          </div>
-          <div class="flex justify-between text-[11px]">
-            <span class="text-slate-500">Schema boosts</span>
-            <span class="text-green-400 font-bold tabular-nums" x-text="schemaAdaptCount"></span>
-          </div>
-          <div class="flex justify-between text-[11px]">
-            <span class="text-slate-500">Schema errors</span>
-            <span :class="schemaErrorCount > 0 ? 'text-red-400' : 'text-slate-600'"
-                  x-text="schemaErrorCount" class="font-bold tabular-nums"></span>
-          </div>
-          <div class="flex justify-between text-[11px]">
-            <span class="text-slate-500">Workflow ID</span>
-            <span class="text-sky-400 font-bold" x-text="workflowId || '—'"></span>
-          </div>
-          <div class="flex justify-between text-[11px]">
-            <span class="text-slate-500">Schema versions</span>
-            <template x-for="[app, ver] in Object.entries(schemaVersions)" :key="app">
-              <span class="text-slate-300 text-[10px] tabular-nums"
-                    x-text="app[0].toUpperCase() + ':' + ver"></span>
-            </template>
-          </div>
+        </div>
+        <div style="font-size:11px;color:var(--text-2);">
+          <span x-text="stepCount + ' steps'"></span>
+          <span style="margin:0 6px;color:var(--border);">·</span>
+          <span x-text="maxSteps + ' max'"></span>
         </div>
       </div>
 
-      <!-- Recent violations -->
-      <div class="p-4 flex-1 overflow-y-auto">
-        <div class="text-xs text-slate-500 uppercase tracking-widest mb-2">Violations</div>
-        <template x-if="violations.length === 0">
-          <p class="text-slate-600 text-xs italic">None this episode.</p>
-        </template>
-        <template x-for="(v, i) in violations.slice(-8)" :key="i">
-          <div class="text-[10px] text-red-400 py-0.5 border-b border-slate-800/50 leading-snug"
-               x-text="v"></div>
+      <!-- Reward breakdown -->
+      <div class="breakdown-block">
+        <div class="section-label">Score Breakdown</div>
+        <template x-for="comp in rewardComponents" :key="comp.key">
+          <div class="breakdown-row">
+            <div class="breakdown-label-row">
+              <span class="breakdown-label" x-text="comp.label"></span>
+              <span class="breakdown-pct" x-text="(comp.value * 100).toFixed(0) + '%'"></span>
+            </div>
+            <div class="bar-track">
+              <div class="bar-fill" :style="'width:' + (comp.value * 100) + '%;background:' + comp.color"></div>
+            </div>
+          </div>
         </template>
       </div>
+
+      <!-- Reward curve -->
+      <div style="padding:14px 16px;border-bottom:1px solid var(--border);flex-shrink:0;">
+        <div class="section-label">Reward Per Step</div>
+        <canvas id="rewardChart" style="width:100%;max-height:90px;"></canvas>
+      </div>
+
+      <!-- Episode stats -->
+      <div class="stats-block">
+        <div class="section-label">Episode Stats</div>
+        <div class="stat-row">
+          <span class="stat-label">Violations</span>
+          <span class="stat-val" :style="violationCount > 0 ? 'color:var(--red)' : 'color:var(--green)'"
+            x-text="violationCount"></span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Schema adaptations</span>
+          <span class="stat-val" style="color:var(--green);" x-text="schemaAdaptCount"></span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Schema errors</span>
+          <span class="stat-val" :style="schemaErrorCount > 0 ? 'color:var(--red)' : ''"
+            x-text="schemaErrorCount"></span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Workflow</span>
+          <span class="stat-val" x-text="workflowId || '—'"></span>
+        </div>
+      </div>
+
+      <!-- Violations -->
+      <div class="violations-block">
+        <div class="section-label">Rule Violations</div>
+        <div x-show="violations.length === 0" style="font-size:11px;color:var(--text-3);">None this episode.</div>
+        <template x-for="(v, i) in violations.slice(-10)" :key="i">
+          <div class="violation-item" x-text="v"></div>
+        </template>
+      </div>
+
     </aside>
+  </div><!-- /layout -->
 
-  </div><!-- end main layout -->
-
-  <!-- ================================================================
-       ALPINE.JS + CHART.JS LOGIC
-       ================================================================ -->
   <script>
-  function orgos() {
-    // Non-reactive handles — kept outside Alpine's Proxy to avoid
-    // deep-traversal stack overflows on complex objects (Chart.js, EventSource).
-    let _chartInst = null;
-    let _sseInst   = null;
+    function orgos() {
+      let _chartInst = null;
+      let _gaugeInst = null;
+      let _sseInst = null;
 
-    return {
-      // ---- Config ----
-      envUrl: window.location.origin,
+      return {
+        envUrl: window.location.origin,
+        selectedWorkflow: 'A',
+        workflowId: '',
+        workflowGoal: '',
+        currentScore: 0.001,
+        stepCount: 0,
+        maxSteps: 15,
+        isRunning: false,
+        policyDriftActive: false,
+        serverHealthy: false,
+        scoreUpdated: false,
 
-      // ---- Episode state ----
-      selectedWorkflow: 'A',
-      workflowId:       '',
-      workflowGoal:     '',
-      currentScore:     0.001,
-      stepCount:        0,
-      maxSteps:         15,
-      isRunning:        false,
-      policyDriftActive: false,
-      serverHealthy:    false,
+        allSteps: [],
+        completedSteps: [],
+        totalSteps: 0,
 
-      // ---- Step tracking ----
-      allSteps:         [],
-      completedSteps:   [],
-      totalSteps:       0,
+        appTabs: [
+          { id: 'zendesk', label: 'Zendesk', color: '#03363D' },
+          { id: 'jira', label: 'Jira', color: '#0052CC' },
+          { id: 'salesforce', label: 'Salesforce', color: '#00A1E0' },
+          { id: 'workday', label: 'Workday', color: '#FF6B35' },
+        ],
+        activeAppTab: 'zendesk',
+        appStates: { zendesk: '', jira: '', salesforce: '', workday: '' },
+        appOpenCounts: { zendesk: 0, jira: 0, salesforce: 0, workday: 0 },
 
-      // ---- App state ----
-      appTabs: [
-        { id: 'zendesk',    label: 'Zendesk',    icon: '🎫' },
-        { id: 'jira',       label: 'Jira',       icon: '🐛' },
-        { id: 'salesforce', label: 'Salesforce', icon: '💼' },
-        { id: 'workday',    label: 'Workday',    icon: '👥' },
-      ],
-      activeAppTab: 'zendesk',
-      appStates:    { zendesk: '', jira: '', salesforce: '', workday: '' },
-      appOpenCounts:{ zendesk: 0, jira: 0, salesforce: 0, workday: 0 },
+        // Structured app data for rich UIs
+        jiraCards: [],
+        zdTickets: [],
+        sfAccounts: [],
+        wdEmployees: [],
+        slaLogged: false,
 
-      // ---- Schema / Rules ----
-      schemaHints:   {},
-      schemaVersions:{},
-      activeRules:   {},
+        schemaHints: {},
+        schemaVersions: {},
+        activeRules: {},
+        rewardHistory: [],
 
-      // ---- Metrics ----
-      rewardHistory: [],
-      rewardComponents: [
-        { key: 'workflow_completion',   label: 'Workflow',  value: 0, color: 'bg-sky-500' },
-        { key: 'rule_compliance',       label: 'Compliance',value: 0, color: 'bg-green-500' },
-        { key: 'schema_adaptation',     label: 'Schema',    value: 0, color: 'bg-violet-500' },
-        { key: 'efficiency',            label: 'Efficiency',value: 0, color: 'bg-amber-500' },
-        { key: 'policy_drift_handling', label: 'Policy',    value: 0, color: 'bg-pink-500' },
-      ],
-      violationCount:   0,
-      schemaAdaptCount: 0,
-      schemaErrorCount: 0,
-      violations:       [],
+        rewardComponents: [
+          { key: 'workflow_completion', label: 'Workflow', value: 0, color: '#10B981' },
+          { key: 'rule_compliance', label: 'Compliance', value: 0, color: '#3B82F6' },
+          { key: 'schema_adaptation', label: 'Schema', value: 0, color: '#8B5CF6' },
+          { key: 'efficiency', label: 'Efficiency', value: 0, color: '#F59E0B' },
+          { key: 'policy_drift_handling', label: 'Policy Drift', value: 0, color: '#EC4899' },
+        ],
 
-      // ---- Log ----
-      actionLog: [],
+        violationCount: 0,
+        schemaAdaptCount: 0,
+        schemaErrorCount: 0,
+        violations: [],
+        actionLog: [],
 
-      scoreUpdated: false,
+        async init() {
+          await this.checkHealth();
+          _chartInst = this._initRewardChart();
+          _gaugeInst = this._initGauge();
+          setInterval(() => this.checkHealth(), 10000);
+        },
 
-      // ----------------------------------------------------------------
-      // Init
-      // ----------------------------------------------------------------
-      async init() {
-        await this.checkHealth();
-        _chartInst = this._initChart();
-        // Poll health every 10s
-        setInterval(() => this.checkHealth(), 10_000);
-      },
-
-      async checkHealth() {
-        try {
-          const r = await fetch(this.envUrl + '/health');
-          this.serverHealthy = r.ok;
-        } catch { this.serverHealthy = false; }
-      },
-
-      // ----------------------------------------------------------------
-      // Reset
-      // ----------------------------------------------------------------
-      async resetEpisode() {
-        this.stopAgent();
-        try {
-          const r = await fetch(this.envUrl + '/reset', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ workflow_id: this.selectedWorkflow }),
-          });
-          const data = await r.json();
-          this._applyObservation(data.observation, null, 0);
-          this.actionLog = [];
-          this.rewardHistory = [];
-          this.violationCount = 0;
-          this.schemaAdaptCount = 0;
-          this.schemaErrorCount = 0;
-          this.violations = [];
-          this._updateChart();
-          this._pushLog({ type: 'reset', step: 0, message: 'Episode reset. Ready to run agent.' });
-          // Fetch schema versions from /state
-          const st = await fetch(this.envUrl + '/state').then(r => r.json());
-          this.schemaVersions = st.schema_versions || {};
-          this.policyDriftActive = st.policy_drift_active || false;
-        } catch (e) {
-          this._pushLog({ type: 'error', step: 0, message: 'Reset failed: ' + e });
-        }
-      },
-
-      // ----------------------------------------------------------------
-      // Run agent via SSE
-      // ----------------------------------------------------------------
-      startAgent() {
-        if (this.isRunning) return;
-        this.isRunning = true;
-        const url = `${this.envUrl}/ui/run-agent?workflow_id=${this.selectedWorkflow}`;
-        _sseInst = new EventSource(url);
-        _sseInst.onmessage = (e) => {
+        async checkHealth() {
           try {
-            const evt = JSON.parse(e.data);
-            this._handleSSEEvent(evt);
-          } catch {}
-        };
-        _sseInst.onerror = () => {
+            const r = await fetch(this.envUrl + '/health');
+            this.serverHealthy = r.ok;
+          } catch { this.serverHealthy = false; }
+        },
+
+        async resetEpisode() {
+          this.stopAgent();
+          try {
+            const r = await fetch(this.envUrl + '/reset', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ workflow_id: this.selectedWorkflow }),
+            });
+            const data = await r.json();
+            this.actionLog = [];
+            this.rewardHistory = [];
+            this.violationCount = 0;
+            this.schemaAdaptCount = 0;
+            this.schemaErrorCount = 0;
+            this.violations = [];
+            this.slaLogged = false;
+            this._applyObservation(data.observation, null, 0);
+            this._updateChart();
+            this._updateGauge();
+            this._pushLog({ type: 'reset', step: 0, message: 'Episode reset. Ready to run agent.' });
+            const st = await fetch(this.envUrl + '/state').then(r => r.json());
+            this.schemaVersions = st.schema_versions || {};
+            this.policyDriftActive = st.policy_drift_active || false;
+          } catch (e) {
+            this._pushLog({ type: 'error', step: 0, message: 'Reset failed: ' + e });
+          }
+        },
+
+        startAgent() {
+          if (this.isRunning) return;
+          this.isRunning = true;
+          const url = `${this.envUrl}/ui/run-agent?workflow_id=${this.selectedWorkflow}`;
+          _sseInst = new EventSource(url);
+          _sseInst.onmessage = (e) => {
+            try {
+              const evt = JSON.parse(e.data);
+              this._handleSSEEvent(evt);
+            } catch { }
+          };
+          _sseInst.onerror = () => {
+            this.isRunning = false;
+            if (_sseInst) { _sseInst.close(); _sseInst = null; }
+            this._pushLog({ type: 'error', step: this.stepCount, message: 'SSE connection error.' });
+          };
+        },
+
+        stopAgent() {
           this.isRunning = false;
           if (_sseInst) { _sseInst.close(); _sseInst = null; }
-          this._pushLog({ type: 'error', step: this.stepCount, message: 'SSE connection error.' });
-        };
-      },
+        },
 
-      stopAgent() {
-        this.isRunning = false;
-        if (_sseInst) { _sseInst.close(); _sseInst = null; }
-      },
-
-      _handleSSEEvent(evt) {
-        if (evt.type === 'reset') {
-          this.actionLog = [];
-          this.rewardHistory = [];
-          this.violationCount = 0;
-          this.violations = [];
-          this.schemaAdaptCount = 0;
-          this.schemaErrorCount = 0;
-          this._applyObservation(evt.observation, null, 0);
-          this._pushLog({ type: 'reset', step: 0, message: `Episode started — Workflow ${evt.workflow_id}` });
-        } else if (evt.type === 'step') {
-          const obs = evt.observation;
-          this._applyObservation(obs, evt.action, evt.reward);
-          // Detect schema adapt / error from message
-          if (obs.message && obs.message.includes('Stale schema')) this.schemaErrorCount++;
-          if (obs.reward > 0.05 && evt.action) this.schemaAdaptCount += (evt.action._adapted ? 1 : 0);
-          this.rewardHistory.push(evt.reward);
-          this._updateChart();
-          // Violations
-          if (obs.rule_violations && obs.rule_violations.length > 0) {
-            this.violations.push(...obs.rule_violations);
-            this.violationCount += obs.rule_violations.length;
+        _handleSSEEvent(evt) {
+          if (evt.type === 'reset') {
+            this.actionLog = [];
+            this.rewardHistory = [];
+            this.violationCount = 0;
+            this.violations = [];
+            this.schemaAdaptCount = 0;
+            this.schemaErrorCount = 0;
+            this.slaLogged = false;
+            this._applyObservation(evt.observation, null, 0);
+            this._pushLog({ type: 'reset', step: 0, message: `Episode started — Workflow ${evt.workflow_id}` });
+          } else if (evt.type === 'step') {
+            const obs = evt.observation;
+            this._applyObservation(obs, evt.action, evt.reward);
+            if (obs.message && obs.message.includes('Stale schema')) this.schemaErrorCount++;
+            if (obs.message && obs.message.includes('SLA event logged')) this.slaLogged = true;
+            this.rewardHistory.push(evt.reward);
+            this._updateChart();
+            this._updateGauge();
+            if (obs.rule_violations && obs.rule_violations.length > 0) {
+              this.violations.push(...obs.rule_violations);
+              this.violationCount += obs.rule_violations.length;
+            }
+            // Highlight touched app card
+            this._highlightAppCard(evt.action, obs.message);
+            this._pushLog({
+              type: evt.reward < 0 ? 'error' : (evt.reward > 0.05 ? 'success' : 'info'),
+              step: evt.step,
+              app: evt.action?.app,
+              operation: evt.action?.operation,
+              reward: evt.reward,
+              message: obs.message,
+            });
+            if (evt.done) this.isRunning = false;
+          } else if (evt.type === 'done') {
+            this._pushLog({
+              type: 'info', step: evt.steps,
+              message: `Episode complete. Final score: ${(evt.final_score || 0).toFixed(3)} | Workflow: ${evt.completed ? 'completed' : 'incomplete'}`,
+            });
+            this.stopAgent();
+          } else if (evt.type === 'error') {
+            this._pushLog({ type: 'error', step: evt.step || this.stepCount, message: evt.message });
+            this.stopAgent();
           }
-          this._pushLog({
-            type:      evt.reward < 0 ? 'error' : (evt.reward > 0.05 ? 'success' : 'info'),
-            step:      evt.step,
-            app:       evt.action?.app,
-            operation: evt.action?.operation,
-            reward:    evt.reward,
-            message:   obs.message,
-            argsStr:   evt.action?.args ? JSON.stringify(evt.action.args, null, 0).slice(0, 80) : '',
+        },
+
+        _highlightAppCard(action, message) {
+          if (!action) return;
+          const app = action.app;
+          const args = action.args || {};
+
+          // Clear previous highlights
+          this.jiraCards = this.jiraCards.map(c => ({ ...c, highlighted: false }));
+          this.zdTickets = this.zdTickets.map(t => ({ ...t, highlighted: false }));
+          this.sfAccounts = this.sfAccounts.map(a => ({ ...a, highlighted: false }));
+          this.wdEmployees = this.wdEmployees.map(e => ({ ...e, highlighted: false }));
+
+          if (app === 'jira') {
+            this.activeAppTab = 'jira';
+            const id = args.issue_id || 'JIRA-001';
+            this.jiraCards = this.jiraCards.map(c => ({ ...c, highlighted: c.id === id }));
+            // If a new issue was created, parse from message
+            if (action.operation === 'create_issue' && message && message.includes('Created JIRA-')) {
+              const m = message.match(/Created (JIRA-\d+)/);
+              if (m) {
+                const newId = m[1];
+                if (!this.jiraCards.find(c => c.id === newId)) {
+                  this.jiraCards = [{
+                    id: newId, title: args.title || 'New Issue',
+                    priority: args.priority || args.severity || 'p1',
+                    assignee: args.assignee || args.owner || null,
+                    status: 'open',
+                    linked_zendesk: args.linked_zendesk || args.zendesk_ticket || null,
+                    highlighted: true,
+                  }, ...this.jiraCards];
+                }
+              }
+            }
+            if (action.operation === 'assign_owner' || action.operation === 'update_status') {
+              this.jiraCards = this.jiraCards.map(c => {
+                if (c.id === id) {
+                  return {
+                    ...c,
+                    assignee: args.assignee || args.owner || args.assigned_to || c.assignee,
+                    status: args.status || args.state || args.current_state || c.status,
+                    highlighted: true,
+                  };
+                }
+                return c;
+              });
+            }
+            if (action.operation === 'link_zendesk_ticket') {
+              this.jiraCards = this.jiraCards.map(c => c.id === id ? { ...c, linked_zendesk: args.zendesk_ticket_number, highlighted: true } : c);
+            }
+          }
+
+          if (app === 'zendesk') {
+            this.activeAppTab = 'zendesk';
+            const id = args.ticket_number || 'ZD-001';
+            this.zdTickets = this.zdTickets.map(t => ({ ...t, highlighted: t.id === id }));
+            if (action.operation === 'acknowledge_ticket') {
+              this.zdTickets = this.zdTickets.map(t => t.id === id ? { ...t, state: 'open', highlighted: true } : t);
+            }
+            if (action.operation === 'assign_agent') {
+              this.zdTickets = this.zdTickets.map(t => t.id === id ? { ...t, agent: args.agent_email || args.handler || args.assigned_agent, highlighted: true } : t);
+            }
+            if (action.operation === 'resolve_ticket') {
+              this.zdTickets = this.zdTickets.map(t => t.id === id ? { ...t, state: 'resolved', highlighted: true } : t);
+            }
+          }
+
+          if (app === 'salesforce') {
+            this.activeAppTab = 'salesforce';
+            const id = args.account_id || 'ACME-001';
+            this.sfAccounts = this.sfAccounts.map(a => ({ ...a, highlighted: a.id === id }));
+            if (action.operation === 'flag_churn_risk') {
+              this.sfAccounts = this.sfAccounts.map(a => a.id === id ? { ...a, health: 'red', churn_risk: true, highlighted: true } : a);
+            }
+            if (action.operation === 'assign_account_owner') {
+              const owner = args.owner || args.owner_name || args.account_owner || args.rep_email;
+              this.sfAccounts = this.sfAccounts.map(a => a.id === id ? { ...a, owner, highlighted: true } : a);
+            }
+          }
+
+          if (app === 'workday') {
+            this.activeAppTab = 'workday';
+            const id = args.employee_id || 'EMP-001';
+            this.wdEmployees = this.wdEmployees.map(e => ({ ...e, highlighted: e.id === id }));
+            if (action.operation === 'create_onboarding_task') {
+              if (!this.wdEmployees.find(e => e.id === id)) {
+                this.wdEmployees = [{
+                  id, name: args.name || id,
+                  department: args.department || 'support',
+                  level: args.level || args.job_level || args.seniority || 'IC1',
+                  status: 'pending', highlighted: true,
+                }, ...this.wdEmployees];
+              }
+            }
+            if (action.operation === 'log_sla_event') this.slaLogged = true;
+          }
+        },
+
+        _applyObservation(obs, action, reward) {
+          this.workflowId = obs.workflow_id || '';
+          this.workflowGoal = obs.workflow_goal || '';
+          this.schemaHints = obs.schema_hints || {};
+          this.activeRules = obs.active_rules || {};
+          this.stepCount = obs.step_count || 0;
+          this.completedSteps = (obs.completed_steps || []).map(id => id);
+          this.policyDriftActive = obs.policy_drift_active || false;
+
+          const newScore = obs.current_score || 0.001;
+          if (newScore !== this.currentScore) {
+            this.currentScore = newScore;
+            this.scoreUpdated = true;
+            setTimeout(() => { this.scoreUpdated = false; }, 600);
+          }
+
+          const wfStepDefs = {
+            A: [
+              { id: 'A1', description: 'Acknowledge ZD-001 in Zendesk' },
+              { id: 'A2', description: 'Create linked Jira issue' },
+              { id: 'A3', description: 'Verify ACME-001 in Salesforce' },
+              { id: 'A4', description: 'Assign Jira issue to engineer' },
+              { id: 'A5', description: 'Log SLA event in Workday' },
+            ],
+            B: [
+              { id: 'B1', description: 'Create Workday onboarding record' },
+              { id: 'B2', description: 'Provision Jira access in Workday' },
+              { id: 'B3', description: 'Assign to Salesforce territory' },
+              { id: 'B4', description: 'Create Zendesk agent profile' },
+            ],
+            C: [
+              { id: 'C1', description: 'Flag ACME-003 as churn risk' },
+              { id: 'C2', description: 'Query Zendesk support volume' },
+              { id: 'C3', description: 'Check Jira open bugs' },
+              { id: 'C4', description: 'Assign intervention owner' },
+            ],
+          };
+          const wfId = obs.workflow_id || this.selectedWorkflow;
+          this.allSteps = wfStepDefs[wfId] || [];
+          this.totalSteps = this.allSteps.length;
+          this.maxSteps = { A: 15, B: 20, C: 18 }[wfId] || 15;
+
+          const rb = obs.reward_breakdown || {};
+          this.rewardComponents.forEach(c => { c.value = rb[c.key] ?? 0; });
+
+          // Parse app states into structured data
+          if (obs.app_states) this._parseAppStates(obs.app_states);
+        },
+
+        _parseAppStates(states) {
+          // Parse the string representation from get_state_view()
+          // into structured objects for our rich UIs.
+          // We do a best-effort parse of the dict-string format.
+          const parseDictStr = (str) => {
+            if (!str) return [];
+            return str.split('\n').filter(Boolean).map(line => {
+              try {
+                // Convert Python dict string to JSON-parseable
+                const json = line
+                  .replace(/'/g, '"')
+                  .replace(/True/g, 'true')
+                  .replace(/False/g, 'false')
+                  .replace(/None/g, 'null');
+                return JSON.parse(json);
+              } catch { return null; }
+            }).filter(Boolean);
+          };
+
+          // Jira
+          const jiraRaw = parseDictStr(states.jira || '');
+          if (jiraRaw.length > 0 || this.jiraCards.length === 0) {
+            const existing = new Map(this.jiraCards.map(c => [c.id, c]));
+            jiraRaw.forEach(r => {
+              const id = r.issue_id || r.id;
+              if (!id) return;
+              const ex = existing.get(id) || {};
+              existing.set(id, {
+                ...ex,
+                id,
+                title: r.title || ex.title || 'Untitled issue',
+                priority: r.priority || r.severity || r.urgency_level || ex.priority || 'p2',
+                assignee: r.assignee || r.owner || r.assigned_to || ex.assignee || null,
+                status: r.status || r.state || r.current_state || ex.status || 'open',
+                linked_zendesk: r.linked_zendesk || ex.linked_zendesk || null,
+                highlighted: ex.highlighted || false,
+              });
+            });
+            this.jiraCards = Array.from(existing.values());
+          }
+
+          // Zendesk
+          const zdRaw = parseDictStr(states.zendesk || '');
+          if (zdRaw.length > 0 || this.zdTickets.length === 0) {
+            const existing = new Map(this.zdTickets.map(t => [t.id, t]));
+            zdRaw.forEach(r => {
+              const id = r.ticket_number || r.id;
+              if (!id) return;
+              const ex = existing.get(id) || {};
+              existing.set(id, {
+                ...ex, id,
+                subject: r.title || ex.subject || 'Support ticket',
+                urgency: r.urgency || r.priority || r.impact_level || ex.urgency || 'p2',
+                agent: r.agent_email || r.handler || r.assigned_agent || ex.agent || null,
+                state: r.state || r.ticket_state || r.resolution_status || ex.state || 'new',
+                customer_id: r.customer_id || ex.customer_id,
+                highlighted: ex.highlighted || false,
+              });
+            });
+            this.zdTickets = Array.from(existing.values());
+          }
+
+          // Salesforce
+          const sfRaw = parseDictStr(states.salesforce || '');
+          if (sfRaw.length > 0 || this.sfAccounts.length === 0) {
+            const existing = new Map(this.sfAccounts.map(a => [a.id, a]));
+            sfRaw.forEach(r => {
+              const id = r.account_id || r.id;
+              if (!id) return;
+              const ex = existing.get(id) || {};
+              existing.set(id, {
+                ...ex, id,
+                name: r.company_name || ex.name || id,
+                health: r.health || r.account_health || r.risk_score || ex.health || 'green',
+                stage: r.deal_stage || r.pipeline_stage || r.stage || ex.stage || 'Qualified',
+                owner: r.owner_name || r.account_owner || r.rep_email || r.owner || ex.owner || null,
+                arr: r.arr || r.annual_recurring_revenue || ex.arr || null,
+                churn_risk: ex.churn_risk || false,
+                highlighted: ex.highlighted || false,
+              });
+            });
+            this.sfAccounts = Array.from(existing.values());
+          }
+
+          // Workday
+          const wdRaw = parseDictStr(states.workday || '');
+          if (wdRaw.length > 0 || this.wdEmployees.length === 0) {
+            const existing = new Map(this.wdEmployees.map(e => [e.id, e]));
+            wdRaw.forEach(r => {
+              const id = r.employee_id || r.id;
+              if (!id) return;
+              const ex = existing.get(id) || {};
+              existing.set(id, {
+                ...ex, id,
+                name: r.name || ex.name || id,
+                department: r.department || ex.department || '—',
+                level: r.level || r.job_level || r.seniority || ex.level || '—',
+                status: r.status || r.request_status || r.approval_state || ex.status || 'active',
+                highlighted: ex.highlighted || false,
+              });
+            });
+            this.wdEmployees = Array.from(existing.values());
+          }
+        },
+
+        _pushLog(entry) {
+          this.actionLog.push(entry);
+          this.$nextTick(() => {
+            const el = document.getElementById('log-scroll');
+            if (el) el.scrollTop = el.scrollHeight;
           });
-          if (evt.done) { this.isRunning = false; }
-        } else if (evt.type === 'done') {
-          this._pushLog({
-            type: 'info', step: evt.steps,
-            message: `Episode done. Final score: ${(evt.final_score||0).toFixed(4)} | Workflow complete: ${evt.completed}`,
-          });
-          this.stopAgent();   // close EventSource — prevents auto-reconnect
-        } else if (evt.type === 'error') {
-          this._pushLog({ type: 'error', step: evt.step || this.stepCount, message: evt.message });
-          this.stopAgent();   // close EventSource on error too — prevents reconnect loop
-        }
-      },
+        },
 
-      // ----------------------------------------------------------------
-      // Apply observation to UI state
-      // ----------------------------------------------------------------
-      _applyObservation(obs, action, reward) {
-        this.workflowId    = obs.workflow_id || '';
-        this.workflowGoal  = obs.workflow_goal || '';
-        this.schemaHints   = obs.schema_hints || {};
-        this.activeRules   = obs.active_rules || {};
-        this.stepCount     = obs.step_count || 0;
-        this.appStates     = obs.app_states || this.appStates;
-        this.completedSteps= (obs.completed_steps || []).map(id => id);
-        this.policyDriftActive = obs.policy_drift_active || false;
-
-        // Score update with flash animation
-        const newScore = obs.current_score || 0.001;
-        if (newScore !== this.currentScore) {
-          this.currentScore = newScore;
-          this.scoreUpdated = true;
-          setTimeout(() => { this.scoreUpdated = false; }, 500);
-        }
-
-        // Workflow steps
-        const wfStepDefs = {
-          A: [
-            { id: 'A1', description: 'Acknowledge ZD-001 in Zendesk' },
-            { id: 'A2', description: 'Create linked Jira issue' },
-            { id: 'A3', description: 'Verify ACME-001 in Salesforce' },
-            { id: 'A4', description: 'Assign Jira issue to engineer' },
-            { id: 'A5', description: 'Log SLA event in Workday' },
-          ],
-          B: [
-            { id: 'B1', description: 'Create Workday onboarding record' },
-            { id: 'B2', description: 'Provision Jira access' },
-            { id: 'B3', description: 'Assign to Salesforce territory team' },
-            { id: 'B4', description: 'Create Zendesk agent profile' },
-          ],
-          C: [
-            { id: 'C1', description: 'Flag ACME-003 as churn risk' },
-            { id: 'C2', description: 'Query Zendesk support volume' },
-            { id: 'C3', description: 'Check Jira open bugs' },
-            { id: 'C4', description: 'Assign intervention owner' },
-          ],
-        };
-        const wfId = obs.workflow_id || this.selectedWorkflow;
-        this.allSteps  = wfStepDefs[wfId] || [];
-        this.totalSteps= this.allSteps.length;
-        this.maxSteps  = { A: 15, B: 20, C: 18 }[wfId] || 15;
-
-        // Reward breakdown
-        const rb = obs.reward_breakdown || {};
-        this.rewardComponents.forEach(c => {
-          c.value = rb[c.key] ?? 0;
-        });
-      },
-
-      // ----------------------------------------------------------------
-      // Log
-      // ----------------------------------------------------------------
-      _pushLog(entry) {
-        this.actionLog.push(entry);
-        // Auto-scroll to bottom
-        this.$nextTick(() => {
-          const el = document.getElementById('log-scroll');
-          if (el) el.scrollTop = el.scrollHeight;
-        });
-      },
-
-      // ----------------------------------------------------------------
-      // Chart
-      // ----------------------------------------------------------------
-      _initChart() {
-        const ctx = document.getElementById('rewardChart').getContext('2d');
-        return new Chart(ctx, {
-          type: 'line',
-          data: {
-            labels: [],
-            datasets: [{
-              data:            [],
-              borderColor:     '#38bdf8',
-              backgroundColor: 'rgba(56,189,248,0.08)',
-              borderWidth:     1.5,
-              pointRadius:     0,
-              tension:         0.3,
-              fill:            true,
-            }],
-          },
-          options: {
-            animation:   false,
-            responsive:  true,
-            maintainAspectRatio: false,
-            plugins: { legend: { display: false }, tooltip: { enabled: false } },
-            scales: {
-              x: { display: false },
-              y: {
-                display: true,
-                grid:    { color: 'rgba(255,255,255,0.04)' },
-                ticks:   { color: '#475569', font: { size: 9 }, maxTicksLimit: 4 },
+        _initRewardChart() {
+          const ctx = document.getElementById('rewardChart').getContext('2d');
+          return new Chart(ctx, {
+            type: 'line',
+            data: {
+              labels: [],
+              datasets: [{
+                data: [],
+                borderColor: '#10B981',
+                backgroundColor: 'rgba(16,185,129,0.08)',
+                borderWidth: 1.5,
+                pointRadius: 0,
+                tension: 0.4,
+                fill: true,
+              }],
+            },
+            options: {
+              animation: false,
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: { legend: { display: false }, tooltip: { enabled: false } },
+              scales: {
+                x: { display: false },
+                y: {
+                  display: true,
+                  grid: { color: 'rgba(0,0,0,0.04)' },
+                  ticks: { color: '#9CA3AF', font: { size: 9, family: 'DM Mono' }, maxTicksLimit: 4 },
+                },
               },
             },
-          },
-        });
-      },
+          });
+        },
 
-      _updateChart() {
-        if (!_chartInst) return;
-        const labels = this.rewardHistory.map((_, i) => i + 1);
-        _chartInst.data.labels            = labels;
-        _chartInst.data.datasets[0].data  = this.rewardHistory;
-        _chartInst.update('none');
-      },
-    };
-  }
+        _initGauge() {
+          const ctx = document.getElementById('gaugeChart').getContext('2d');
+          return new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+              datasets: [{
+                data: [0.001, 0.999],
+                backgroundColor: ['#111827', '#F3F4F6'],
+                borderWidth: 0,
+                circumference: 240,
+                rotation: 240,
+              }],
+            },
+            options: {
+              animation: { duration: 400 },
+              responsive: false,
+              cutout: '78%',
+              plugins: { legend: { display: false }, tooltip: { enabled: false } },
+            },
+          });
+        },
+
+        _updateChart() {
+          if (!_chartInst) return;
+          _chartInst.data.labels = this.rewardHistory.map((_, i) => i + 1);
+          _chartInst.data.datasets[0].data = this.rewardHistory;
+          _chartInst.update('none');
+        },
+
+        _updateGauge() {
+          if (!_gaugeInst) return;
+          const v = Math.max(0.001, Math.min(0.999, this.currentScore));
+          _gaugeInst.data.datasets[0].data = [v, 1 - v];
+          _gaugeInst.update();
+        },
+      };
+    }
   </script>
-
 </body>
+
 </html>
