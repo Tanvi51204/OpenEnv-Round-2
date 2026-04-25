@@ -201,20 +201,24 @@ def run_workflow(workflow_id: str) -> float:
             obs_text = obs_to_text(obs)
             history.append({"role": "user", "content": obs_text})
 
-            # Trim history to avoid context overflow
-            # if len(history) > 20:
-            #     history = history[-20:]
-            # Trim history — always keep an even number so roles alternate correctly
+            # Trim history — keep last 20, ensure it starts with a user message
             if len(history) > 20:
                 history = history[-20:]
-            # Ensure history starts with a user message (Gemma requires strict alternation)
             if history and history[0]["role"] != "user":
-                history = history[1:]            
+                history = history[1:]
+
+            # Inject system prompt into first user message (Gemma/models without system role)
+            messages_for_llm = list(history)
+            if messages_for_llm:
+                messages_for_llm[0] = {
+                    "role": "user",
+                    "content": SYSTEM_PROMPT + "\n\n---\n\n" + messages_for_llm[0]["content"],
+                }
 
             try:
                 response = llm_client.chat.completions.create(
                     model       = MODEL_NAME,
-                    messages    = [{"role": "system", "content": SYSTEM_PROMPT}] + history,
+                    messages    = messages_for_llm,
                     temperature = 0.0,
                     max_tokens  = 300,
                 )
@@ -331,11 +335,21 @@ async def run_workflow_generator(
         history.append({"role": "user", "content": obs_text})
         if len(history) > 20:
             history = history[-20:]
+        if history and history[0]["role"] != "user":
+            history = history[1:]
+
+        # Inject system prompt into first user message (Gemma/models without system role)
+        messages_for_llm = list(history)
+        if messages_for_llm:
+            messages_for_llm[0] = {
+                "role": "user",
+                "content": SYSTEM_PROMPT + "\n\n---\n\n" + messages_for_llm[0]["content"],
+            }
 
         try:
             response = llm_client.chat.completions.create(
                 model       = MODEL_NAME,
-                messages    = [{"role": "system", "content": SYSTEM_PROMPT}] + history,
+                messages    = messages_for_llm,
                 temperature = 0.0,
                 max_tokens  = 300,
             )
