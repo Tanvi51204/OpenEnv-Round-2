@@ -7,7 +7,7 @@
   <title>OrgOS — Enterprise RL Environment</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link
-    href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap"
+    href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=DM+Mono:wght@400;500&display=swap"
     rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
@@ -17,42 +17,34 @@
     *::before,
     *::after {
       box-sizing: border-box;
+      margin: 0;
+      padding: 0;
     }
 
     :root {
       --font-sans: 'DM Sans', sans-serif;
       --font-mono: 'DM Mono', monospace;
-
-      /* OrgOS neutrals */
       --bg: #F5F6F8;
       --surface: #FFFFFF;
       --border: #E3E6EA;
       --text-1: #111827;
       --text-2: #6B7280;
       --text-3: #9CA3AF;
-
-      /* App brand colors */
-      --jira: #0052CC;
-      --jira-light: #E9F0FF;
-      --jira-mid: #B3C8F0;
-
-      --zendesk: #03363D;
-      --zendesk-light: #E6F3F4;
-      --zendesk-mid: #B2D8DB;
-
-      --sf: #00A1E0;
-      --sf-light: #E5F6FD;
-      --sf-mid: #B3E3F8;
-
-      --wd: #FF6B35;
-      --wd-light: #FFF0EB;
-      --wd-mid: #FFD0C0;
-
-      /* Status */
       --green: #10B981;
       --red: #EF4444;
       --amber: #F59E0B;
-      --violet: #7C3AED;
+      --jira: #0052CC;
+      --jira-light: #E9F0FF;
+      --jira-mid: #B3C8F0;
+      --zendesk: #03363D;
+      --zendesk-light: #E6F3F4;
+      --zendesk-mid: #B2D8DB;
+      --sf: #00A1E0;
+      --sf-light: #E5F6FD;
+      --sf-mid: #B3E3F8;
+      --wd: #FF6B35;
+      --wd-light: #FFF0EB;
+      --wd-mid: #FFD0C0;
     }
 
     body {
@@ -63,7 +55,6 @@
       line-height: 1.5;
     }
 
-    /* ---- Scrollbars ---- */
     ::-webkit-scrollbar {
       width: 5px;
       height: 5px;
@@ -82,7 +73,7 @@
       background: var(--text-3);
     }
 
-    /* ---- Animations ---- */
+    /* ── Animations ── */
     @keyframes fadeUp {
       from {
         opacity: 0;
@@ -103,19 +94,7 @@
       }
 
       50% {
-        opacity: 0.4;
-      }
-    }
-
-    @keyframes drift-in {
-      from {
-        opacity: 0;
-        transform: translateX(12px);
-      }
-
-      to {
-        opacity: 1;
-        transform: translateX(0);
+        opacity: 0.35;
       }
     }
 
@@ -143,12 +122,56 @@
       }
     }
 
-    .fade-up {
-      animation: fadeUp 0.25s ease forwards;
+    @keyframes record-focus {
+      0% {
+        transform: scale(0.985);
+      }
+
+      45% {
+        transform: scale(1.018);
+      }
+
+      100% {
+        transform: scale(1);
+      }
     }
 
-    .drift-in {
-      animation: drift-in 0.2s ease forwards;
+    @keyframes action-sweep {
+      0% {
+        transform: translateX(-100%);
+      }
+
+      100% {
+        transform: translateX(250%);
+      }
+    }
+
+    @keyframes banner-in {
+      from {
+        opacity: 0;
+        transform: translateY(-8px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes tab-pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.6;
+      }
+    }
+
+    .fade-up {
+      animation: fadeUp 0.25s ease forwards;
     }
 
     .live-dot {
@@ -163,11 +186,15 @@
       animation: score-flash 0.5s ease;
     }
 
+    .record-focus {
+      animation: record-focus 0.75s ease;
+    }
+
     [x-cloak] {
       display: none !important;
     }
 
-    /* ---- Top bar ---- */
+    /* ── Topbar ── */
     .topbar {
       background: var(--surface);
       border-bottom: 1px solid var(--border);
@@ -175,7 +202,7 @@
       display: flex;
       align-items: center;
       padding: 0 20px;
-      gap: 16px;
+      gap: 14px;
       position: sticky;
       top: 0;
       z-index: 100;
@@ -206,7 +233,6 @@
     .logo-sub {
       font-size: 11px;
       color: var(--text-3);
-      font-weight: 400;
     }
 
     .divider {
@@ -220,7 +246,7 @@
       background: var(--bg);
       border: 1px solid var(--border);
       border-radius: 7px;
-      padding: 5px 10px;
+      padding: 5px 28px 5px 10px;
       font-family: var(--font-sans);
       font-size: 12px;
       color: var(--text-1);
@@ -228,15 +254,9 @@
       outline: none;
       cursor: pointer;
       appearance: none;
-      padding-right: 28px;
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%236B7280' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
       background-repeat: no-repeat;
       background-position: right 9px center;
-      transition: border-color 0.15s;
-    }
-
-    .wf-select:focus {
-      border-color: #6B7280;
     }
 
     .btn {
@@ -296,7 +316,7 @@
       font-weight: 500;
     }
 
-    /* ---- Three-col layout ---- */
+    /* ── Layout ── */
     .layout {
       display: grid;
       grid-template-columns: 260px 1fr 240px;
@@ -304,7 +324,7 @@
       overflow: hidden;
     }
 
-    /* ---- Left sidebar ---- */
+    /* ── Left sidebar ── */
     .sidebar-left {
       background: var(--surface);
       border-right: 1px solid var(--border);
@@ -328,7 +348,6 @@
       margin-bottom: 10px;
     }
 
-    /* Workflow steps */
     .step-row {
       display: flex;
       align-items: flex-start;
@@ -369,11 +388,10 @@
     }
 
     .step-desc.done {
-      color: var(--text-3);
-      text-decoration: line-through;
+      color: var(--green);
+      font-weight: 500;
     }
 
-    /* Schema drift pills */
     .drift-pill {
       display: flex;
       align-items: center;
@@ -409,7 +427,6 @@
       margin-left: auto;
     }
 
-    /* Rules */
     .rule-row {
       display: flex;
       justify-content: space-between;
@@ -429,7 +446,7 @@
       color: var(--text-1);
     }
 
-    /* ---- Center panel — App tabs ---- */
+    /* ── Center panel ── */
     .center-panel {
       display: flex;
       flex-direction: column;
@@ -437,7 +454,112 @@
       background: var(--bg);
     }
 
-    /* App tab strip */
+    /* ── Action banner (cinematic) ── */
+    .action-banner {
+      margin: 10px 14px 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 9px 14px;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 12px;
+      align-items: center;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 4px 16px rgba(17, 24, 39, 0.07);
+      animation: banner-in 0.2s ease;
+      flex-shrink: 0;
+    }
+
+    .action-banner::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -60%;
+      width: 40%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.65), transparent);
+      animation: action-sweep 1.4s ease-in-out infinite;
+      pointer-events: none;
+    }
+
+    .banner-dot {
+      width: 36px;
+      height: 36px;
+      border-radius: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-weight: 700;
+      font-size: 11px;
+      position: relative;
+      z-index: 1;
+      flex-shrink: 0;
+    }
+
+    .banner-copy {
+      position: relative;
+      z-index: 1;
+      min-width: 0;
+    }
+
+    .banner-eyebrow {
+      font-size: 10px;
+      color: var(--text-3);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 2px;
+    }
+
+    .banner-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-1);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .banner-sub {
+      font-size: 11px;
+      color: var(--text-2);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .banner-step {
+      position: relative;
+      z-index: 1;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-3);
+      background: var(--bg);
+      border-radius: 99px;
+      padding: 3px 9px;
+      flex-shrink: 0;
+    }
+
+    .banner-jira {
+      border-color: rgba(0, 82, 204, 0.25);
+    }
+
+    .banner-zendesk {
+      border-color: rgba(3, 54, 61, 0.25);
+    }
+
+    .banner-salesforce {
+      border-color: rgba(0, 161, 224, 0.25);
+    }
+
+    .banner-workday {
+      border-color: rgba(255, 107, 53, 0.25);
+    }
+
+    /* ── App tabs ── */
     .app-tabs {
       display: flex;
       background: var(--surface);
@@ -470,6 +592,10 @@
       border-bottom-color: var(--text-1);
     }
 
+    .app-tab.acting {
+      animation: tab-pulse 0.8s ease-in-out 2;
+    }
+
     .app-tab .app-dot {
       width: 8px;
       height: 8px;
@@ -491,7 +617,20 @@
       color: #fff;
     }
 
-    /* ---- JIRA-like UI ---- */
+    /* ── App content ── */
+    .app-content {
+      flex: 1;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .app-inner {
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    /* ── JIRA ── */
     .jira-header {
       background: var(--jira);
       padding: 10px 20px;
@@ -508,8 +647,11 @@
     }
 
     .jira-project {
-      font-size: 12px;
+      font-size: 11px;
       color: rgba(255, 255, 255, 0.7);
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 4px;
+      padding: 2px 8px;
     }
 
     .jira-nav {
@@ -524,7 +666,6 @@
       font-size: 12px;
       color: rgba(255, 255, 255, 0.8);
       cursor: pointer;
-      transition: background 0.1s;
     }
 
     .jira-nav-item:hover {
@@ -577,7 +718,7 @@
       margin-bottom: 6px;
       border: 1px solid var(--border);
       cursor: pointer;
-      transition: box-shadow 0.15s;
+      transition: box-shadow 0.15s, border-color 0.2s, transform 0.2s;
     }
 
     .jira-card:hover {
@@ -586,7 +727,8 @@
 
     .jira-card.highlighted {
       border-color: var(--jira);
-      box-shadow: 0 0 0 2px rgba(0, 82, 204, 0.15);
+      box-shadow: 0 0 0 3px rgba(0, 82, 204, 0.18), 0 12px 30px rgba(0, 82, 204, 0.16);
+      animation: record-focus 0.75s ease;
     }
 
     .jira-card-title {
@@ -641,7 +783,7 @@
       color: var(--jira);
     }
 
-    /* ---- ZENDESK-like UI ---- */
+    /* ── ZENDESK ── */
     .zd-header {
       background: var(--zendesk);
       padding: 10px 20px;
@@ -743,7 +885,7 @@
       margin-bottom: 4px;
       font-size: 12px;
       cursor: pointer;
-      transition: box-shadow 0.15s;
+      transition: box-shadow 0.15s, border-color 0.2s, transform 0.2s;
     }
 
     .zd-ticket-row:hover {
@@ -752,6 +894,8 @@
 
     .zd-ticket-row.highlighted {
       border-color: var(--zendesk);
+      box-shadow: 0 0 0 3px rgba(3, 54, 61, 0.16), 0 12px 30px rgba(3, 54, 61, 0.12);
+      animation: record-focus 0.75s ease;
     }
 
     .zd-tid {
@@ -765,7 +909,8 @@
       color: var(--text-1);
     }
 
-    .zd-urgency {
+    .zd-urgency,
+    .zd-status {
       text-align: center;
     }
 
@@ -798,10 +943,6 @@
       color: var(--text-2);
     }
 
-    .zd-status {
-      text-align: center;
-    }
-
     .status-badge {
       display: inline-block;
       width: 8px;
@@ -825,7 +966,7 @@
       background: var(--red);
     }
 
-    /* ---- SALESFORCE-like UI ---- */
+    /* ── SALESFORCE ── */
     .sf-header {
       background: var(--sf);
       padding: 10px 20px;
@@ -878,7 +1019,6 @@
 
     .sf-stages {
       display: flex;
-      gap: 0;
       margin-bottom: 16px;
       border-radius: 6px;
       overflow: hidden;
@@ -895,7 +1035,6 @@
       text-transform: uppercase;
       letter-spacing: 0.05em;
       color: var(--sf);
-      position: relative;
     }
 
     .sf-stage.active {
@@ -918,7 +1057,7 @@
       gap: 12px;
       align-items: center;
       cursor: pointer;
-      transition: box-shadow 0.15s;
+      transition: box-shadow 0.15s, border-color 0.2s, transform 0.2s;
     }
 
     .sf-account-card:hover {
@@ -927,7 +1066,8 @@
 
     .sf-account-card.highlighted {
       border-color: var(--sf);
-      box-shadow: 0 0 0 2px rgba(0, 161, 224, 0.15);
+      box-shadow: 0 0 0 3px rgba(0, 161, 224, 0.18), 0 12px 30px rgba(0, 161, 224, 0.16);
+      animation: record-focus 0.75s ease;
     }
 
     .sf-avatar {
@@ -982,7 +1122,7 @@
       color: var(--text-1);
     }
 
-    /* ---- WORKDAY-like UI ---- */
+    /* ── WORKDAY ── */
     .wd-header {
       background: var(--wd);
       padding: 10px 20px;
@@ -1038,7 +1178,7 @@
       font-size: 12px;
       align-items: center;
       cursor: pointer;
-      transition: box-shadow 0.15s;
+      transition: box-shadow 0.15s, border-color 0.2s, transform 0.2s;
     }
 
     .wd-task-row:hover {
@@ -1047,6 +1187,8 @@
 
     .wd-task-row.highlighted {
       border-color: var(--wd);
+      box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.18), 0 12px 30px rgba(255, 107, 53, 0.14);
+      animation: record-focus 0.75s ease;
     }
 
     .wd-emp {
@@ -1091,16 +1233,15 @@
       margin-top: 2px;
     }
 
-    /* ---- Agent log in center ---- */
+    /* ── Agent log ── */
     .agent-log {
-      flex: 1;
       display: flex;
       flex-direction: column;
       background: var(--surface);
       border-top: 1px solid var(--border);
       overflow: hidden;
-      min-height: 200px;
-      max-height: 280px;
+      min-height: 180px;
+      max-height: 260px;
     }
 
     .log-header {
@@ -1231,7 +1372,7 @@
       line-height: 1.4;
     }
 
-    /* ---- Right sidebar ---- */
+    /* ── Right sidebar ── */
     .sidebar-right {
       background: var(--surface);
       border-left: 1px solid var(--border);
@@ -1240,7 +1381,6 @@
       overflow: hidden;
     }
 
-    /* Score gauge */
     .score-block {
       padding: 20px 16px 16px;
       border-bottom: 1px solid var(--border);
@@ -1282,7 +1422,6 @@
       margin-top: 2px;
     }
 
-    /* Breakdown bars */
     .breakdown-block {
       padding: 14px 16px;
       border-bottom: 1px solid var(--border);
@@ -1323,7 +1462,6 @@
       transition: width 0.4s ease;
     }
 
-    /* Episode stats */
     .stats-block {
       padding: 14px 16px;
       border-bottom: 1px solid var(--border);
@@ -1349,7 +1487,6 @@
       color: var(--text-1);
     }
 
-    /* Violations */
     .violations-block {
       padding: 14px 16px;
       flex: 1;
@@ -1368,17 +1505,18 @@
       border-bottom: none;
     }
 
-    /* Policy drift banner */
+    /* ── Misc ── */
     .drift-banner {
       background: linear-gradient(90deg, #FFFBEB, #FEF3C7);
       border: 1px solid #FDE68A;
       border-radius: 7px;
       padding: 8px 12px;
-      margin: 12px 16px 0;
+      margin: 10px 14px 0;
       display: flex;
       align-items: center;
       gap: 8px;
-      animation: fadeUp 0.3s ease;
+      animation: banner-in 0.3s ease;
+      flex-shrink: 0;
     }
 
     .drift-banner-dot {
@@ -1395,20 +1533,15 @@
       color: #92400E;
     }
 
-    /* App content area (flex-1 scrollable) */
-    .app-content {
-      flex: 1;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
+    .schema-pill {
+      background: rgba(255, 255, 255, 0.18);
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-size: 10px;
+      color: rgba(255, 255, 255, 0.9);
+      font-family: var(--font-mono);
     }
 
-    .app-inner {
-      flex: 1;
-      overflow-y: auto;
-    }
-
-    /* Live indicator */
     .live-badge {
       display: flex;
       align-items: center;
@@ -1424,40 +1557,26 @@
       border-radius: 50%;
       background: var(--green);
     }
-
-    /* Schema version pills in header */
-    .schema-pill {
-      background: rgba(255, 255, 255, 0.18);
-      border-radius: 4px;
-      padding: 2px 8px;
-      font-size: 10px;
-      color: rgba(255, 255, 255, 0.9);
-      font-family: var(--font-mono);
-    }
   </style>
 </head>
 
 <body x-data="orgos()" x-init="init()">
 
-  <!-- TOP BAR -->
+  <!-- ═══ TOP BAR ═══ -->
   <header class="topbar">
     <div class="logo-mark">OS</div>
     <div>
       <div class="logo-text">OrgOS</div>
     </div>
     <div class="logo-sub">Enterprise RL Environment</div>
-
     <div class="divider"></div>
-
     <label style="font-size:11px;color:var(--text-3);font-weight:500;">Workflow</label>
     <select class="wf-select" x-model="selectedWorkflow">
       <option value="A">A — Customer Bug Fix</option>
       <option value="B">B — Employee Onboarding</option>
       <option value="C">C — Churn Risk Alert</option>
     </select>
-
     <button class="btn btn-ghost" @click="resetEpisode()" :disabled="isRunning">Reset</button>
-
     <button class="btn" :class="isRunning ? 'btn-danger' : 'btn-primary'"
       @click="isRunning ? stopAgent() : startAgent()">
       <svg x-show="!isRunning" width="10" height="10" fill="currentColor" viewBox="0 0 16 16">
@@ -1470,66 +1589,56 @@
       </svg>
       <span x-text="isRunning ? 'Stop' : 'Run Agent'"></span>
     </button>
-
     <div class="divider"></div>
-
-    <!-- Score in topbar -->
     <div style="display:flex;align-items:baseline;gap:5px;">
       <span style="font-size:11px;color:var(--text-3);font-weight:500;">Score</span>
       <span style="font-size:18px;font-weight:600;color:var(--text-1);font-family:var(--font-mono);"
         :class="scoreUpdated ? 'score-flash' : ''" x-text="currentScore.toFixed(3)"></span>
     </div>
-
     <div style="display:flex;align-items:baseline;gap:5px;">
       <span style="font-size:11px;color:var(--text-3);font-weight:500;">Step</span>
       <span style="font-size:18px;font-weight:600;color:var(--text-1);font-family:var(--font-mono);"
-        x-text="stepCount + '/' + maxSteps"></span>
+        x-text="stepCount+'/'+maxSteps"></span>
     </div>
-
     <div x-show="policyDriftActive" class="badge" style="background:#FEF3C7;color:#92400E;border:1px solid #FDE68A;">
-      Policy Drift Active
-    </div>
-
-    <div class="ml-auto" style="display:flex;align-items:center;gap:6px;">
-      <div class="live-badge-dot" :class="serverHealthy ? 'live-dot' : ''"
-        :style="serverHealthy ? '' : 'background:var(--red)'"></div>
-      <span style="font-size:11px;" :class="serverHealthy ? 'live-badge' : ''"
-        :style="!serverHealthy ? 'color:var(--red);font-size:11px;' : ''"
-        x-text="serverHealthy ? 'Connected' : 'Offline'"></span>
+      Policy Drift Active</div>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
+      <div class="live-badge-dot" :class="serverHealthy?'live-dot':''"
+        :style="serverHealthy?'':'background:var(--red)'"></div>
+      <span style="font-size:11px;" :class="serverHealthy?'live-badge':''"
+        :style="!serverHealthy?'color:var(--red);font-size:11px;':''"
+        x-text="serverHealthy?'Connected':'Offline'"></span>
     </div>
   </header>
 
-  <!-- THREE-COLUMN LAYOUT -->
+  <!-- ═══ THREE-COLUMN LAYOUT ═══ -->
   <div class="layout">
 
-    <!-- LEFT SIDEBAR: Workflow + Schema + Rules -->
+    <!-- ── LEFT SIDEBAR ── -->
     <aside class="sidebar-left">
 
-      <!-- Workflow progress -->
       <div class="sidebar-section" style="flex:1;overflow-y:auto;">
         <div class="section-label">
-          Workflow
-          <span style="color:var(--text-1);font-weight:700;" x-text="workflowId || selectedWorkflow"></span>
+          Workflow <span style="color:var(--text-1);font-weight:700;" x-text="workflowId||selectedWorkflow"></span>
           Progress
         </div>
         <div style="margin-bottom:12px;">
           <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-2);margin-bottom:5px;">
-            <span x-text="completedSteps.length + ' of ' + totalSteps + ' steps done'"></span>
+            <span x-text="completedSteps.length+' of '+totalSteps+' steps done'"></span>
             <span style="font-weight:600;color:var(--text-1);"
-              x-text="Math.round(completedSteps.length/Math.max(totalSteps,1)*100) + '%'"></span>
+              x-text="Math.round(completedSteps.length/Math.max(totalSteps,1)*100)+'%'"></span>
           </div>
           <div style="height:4px;background:var(--bg);border-radius:2px;">
             <div style="height:4px;background:var(--green);border-radius:2px;transition:width 0.4s ease;"
-              :style="'width:' + (completedSteps.length/Math.max(totalSteps,1)*100) + '%'"></div>
+              :style="'width:'+(completedSteps.length/Math.max(totalSteps,1)*100)+'%'"></div>
           </div>
         </div>
         <div x-show="workflowGoal"
           style="font-size:11px;color:var(--text-2);line-height:1.5;margin-bottom:12px;padding:8px;background:var(--bg);border-radius:6px;"
           x-text="workflowGoal"></div>
-
-        <template x-for="(step, i) in allSteps" :key="i">
+        <template x-for="(step,i) in allSteps" :key="i">
           <div class="step-row">
-            <div class="step-num" :class="completedSteps.includes(step.id) ? 'done' : ''">
+            <div class="step-num" :class="completedSteps.includes(step.id)?'done':''">
               <template x-if="completedSteps.includes(step.id)">
                 <svg class="step-check" width="10" height="10" fill="currentColor" viewBox="0 0 16 16">
                   <path
@@ -1540,46 +1649,42 @@
                 <span x-text="step.id"></span>
               </template>
             </div>
-            <span class="step-desc" :class="completedSteps.includes(step.id) ? 'done' : ''"
+            <span class="step-desc" :class="completedSteps.includes(step.id)?'done':''"
               x-text="step.description"></span>
           </div>
         </template>
       </div>
 
-      <!-- Schema drift -->
       <div class="sidebar-section">
         <div class="section-label">Schema Drift</div>
-        <div x-show="Object.keys(schemaHints).length === 0" style="font-size:11px;color:var(--text-3);">
-          No drift — v1 canonical names active.
-        </div>
-        <template x-for="[field, drifted] in Object.entries(schemaHints)" :key="field">
+        <div x-show="Object.keys(schemaHints).length===0" style="font-size:11px;color:var(--text-3);">No drift — v1
+          canonical names active.</div>
+        <template x-for="[field,drifted] in Object.entries(schemaHints)" :key="field">
           <div class="drift-pill">
-            <span class="drift-old" x-text="field.split('.')[1] ?? field"></span>
+            <span class="drift-old" x-text="field.split('.')[1]??field"></span>
             <span class="drift-arr">→</span>
             <span class="drift-new" x-text="drifted"></span>
-            <span class="drift-app" x-text="field.split('.')[0] ?? ''"></span>
+            <span class="drift-app" x-text="field.split('.')[0]??''"></span>
           </div>
         </template>
       </div>
 
-      <!-- Active rules -->
       <div class="sidebar-section">
         <div class="section-label">Active Rules</div>
-        <template x-for="[key, val] in Object.entries(activeRules)" :key="key">
+        <template x-for="[key,val] in Object.entries(activeRules)" :key="key">
           <div class="rule-row">
             <span class="rule-key" x-text="key.replace(/_/g,' ')"></span>
             <span class="rule-val" x-text="val"></span>
           </div>
         </template>
-        <div x-show="Object.keys(activeRules).length === 0" style="font-size:11px;color:var(--text-3);">Reset to load
+        <div x-show="Object.keys(activeRules).length===0" style="font-size:11px;color:var(--text-3);">Reset to load
           rules.</div>
       </div>
 
-      <!-- Schema versions -->
       <div class="sidebar-section" style="border-bottom:none;">
         <div class="section-label">Schema Versions</div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;">
-          <template x-for="[app, ver] in Object.entries(schemaVersions)" :key="app">
+          <template x-for="[app,ver] in Object.entries(schemaVersions)" :key="app">
             <div
               style="background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:3px 8px;font-size:11px;">
               <span style="color:var(--text-3);" x-text="app.charAt(0).toUpperCase()+app.slice(1,3)"></span>
@@ -1587,29 +1692,42 @@
                 x-text="ver"></span>
             </div>
           </template>
-          <div x-show="Object.keys(schemaVersions).length === 0" style="font-size:11px;color:var(--text-3);">—</div>
+          <div x-show="Object.keys(schemaVersions).length===0" style="font-size:11px;color:var(--text-3);">—</div>
         </div>
       </div>
-
     </aside>
 
-    <!-- CENTER: App UIs + Agent Log -->
+    <!-- ── CENTER PANEL ── -->
     <main class="center-panel">
 
       <!-- Policy drift banner -->
-      <div x-show="policyDriftActive" class="drift-banner" style="flex-shrink:0;">
+      <div x-show="policyDriftActive" class="drift-banner">
         <div class="drift-banner-dot live-dot"></div>
         <span class="drift-banner-text">Policy drift active — SLA and approval thresholds have tightened this
           episode.</span>
       </div>
 
+      <!-- ★ CINEMATIC ACTION BANNER — shows while agent is acting on an app -->
+      <div x-show="cinematicAction" class="action-banner" :class="cinematicAction?'banner-'+cinematicAction.app:''">
+        <div class="banner-dot" :style="'background:'+appColor(cinematicAction?.app)"
+          x-text="appInitial(cinematicAction?.app)"></div>
+        <div class="banner-copy">
+          <div class="banner-eyebrow">Agent operating in <span x-text="appLabel(cinematicAction?.app)"></span></div>
+          <div class="banner-title" x-text="operationLabel(cinematicAction)"></div>
+          <div class="banner-sub" x-text="cinematicAction?.summary||'Applying workflow action...'"></div>
+        </div>
+        <div class="banner-step" x-text="'step '+(cinematicAction?.step||stepCount)"></div>
+      </div>
+
       <!-- App tab strip -->
-      <div class="app-tabs" style="flex-shrink:0;">
+      <div class="app-tabs">
         <template x-for="tab in appTabs" :key="tab.id">
-          <div class="app-tab" :class="activeAppTab === tab.id ? 'active' : ''" @click="activeAppTab = tab.id">
-            <div class="app-dot" :style="'background:' + tab.color"></div>
+          <div class="app-tab"
+            :class="[(activeAppTab===tab.id?'active':''), (cinematicAction?.app===tab.id&&activeAppTab===tab.id?'acting':'')]"
+            @click="activeAppTab=tab.id">
+            <div class="app-dot" :style="'background:'+tab.color"></div>
             <span x-text="tab.label"></span>
-            <template x-if="appOpenCounts[tab.id] > 0">
+            <template x-if="appOpenCounts[tab.id]>0">
               <span class="tab-count" x-text="appOpenCounts[tab.id]"></span>
             </template>
           </div>
@@ -1620,15 +1738,13 @@
       <div class="app-content">
         <div class="app-inner">
 
-          <!-- ======================== JIRA ======================== -->
-          <div x-show="activeAppTab === 'jira'">
+          <!-- ════ JIRA ════ -->
+          <div x-show="activeAppTab==='jira'">
             <div class="jira-header">
               <span class="jira-logo">Jira</span>
-              <span class="jira-project"
-                style="background:rgba(255,255,255,0.15);border-radius:4px;padding:2px 8px;font-size:11px;">OrgOS /
-                Engineering</span>
-              <template x-for="[app, ver] in Object.entries(schemaVersions)" :key="app">
-                <span x-show="app === 'jira'" class="schema-pill" x-text="'schema ' + ver"></span>
+              <span class="jira-project">OrgOS / Engineering</span>
+              <template x-for="[app,ver] in Object.entries(schemaVersions)" :key="app">
+                <span x-show="app==='jira'" class="schema-pill" x-text="'schema '+ver"></span>
               </template>
               <div class="jira-nav" style="margin-left:auto;">
                 <div class="jira-nav-item">Board</div>
@@ -1639,77 +1755,64 @@
             <div class="jira-board">
               <div style="font-size:12px;font-weight:600;color:var(--text-1);margin-bottom:14px;">Sprint Board</div>
               <div class="jira-board-cols">
-                <!-- TO DO -->
                 <div>
-                  <div class="jira-col-header">
-                    To Do
-                    <span class="jira-col-count" x-text="jiraCards.filter(c=>c.status==='open').length"></span>
-                  </div>
+                  <div class="jira-col-header">To Do <span class="jira-col-count"
+                      x-text="jiraCards.filter(c=>c.status==='open').length"></span></div>
                   <div class="jira-col-body">
                     <template x-for="card in jiraCards.filter(c=>c.status==='open')" :key="card.id">
-                      <div class="jira-card" :class="card.highlighted ? 'highlighted' : ''">
+                      <div class="jira-card" :class="card.highlighted?'highlighted':''">
                         <div class="jira-card-title" x-text="card.title"></div>
                         <div class="jira-card-meta">
-                          <div class="priority-dot"
-                            :class="card.priority === 'p0' ? 'p0' : card.priority === 'p1' ? 'p1' : 'p2'"></div>
+                          <div class="priority-dot" :class="card.priority==='p0'?'p0':card.priority==='p1'?'p1':'p2'">
+                          </div>
                           <span class="jira-id" x-text="card.id"></span>
                           <template x-if="card.linked_zendesk">
                             <span
                               style="font-size:10px;background:var(--zendesk-light);color:var(--zendesk);border-radius:3px;padding:1px 5px;font-weight:500;"
                               x-text="card.linked_zendesk"></span>
                           </template>
-                          <div class="jira-assignee"
-                            x-text="card.assignee ? card.assignee.charAt(0).toUpperCase() : '?'"
-                            :style="card.assignee ? '' : 'color:var(--text-3);'"></div>
+                          <div class="jira-assignee" x-text="card.assignee?card.assignee.charAt(0).toUpperCase():'?'"
+                            :style="card.assignee?'':'color:var(--text-3);'"></div>
                         </div>
                       </div>
                     </template>
-                    <div x-show="jiraCards.filter(c=>c.status==='open').length === 0"
+                    <div x-show="jiraCards.filter(c=>c.status==='open').length===0"
                       style="font-size:11px;color:var(--text-3);padding:12px;text-align:center;">No open issues</div>
                   </div>
                 </div>
-                <!-- IN PROGRESS -->
                 <div>
-                  <div class="jira-col-header">
-                    In Progress
-                    <span class="jira-col-count" x-text="jiraCards.filter(c=>c.status==='in_progress').length"></span>
-                  </div>
+                  <div class="jira-col-header">In Progress <span class="jira-col-count"
+                      x-text="jiraCards.filter(c=>c.status==='in_progress').length"></span></div>
                   <div class="jira-col-body">
                     <template x-for="card in jiraCards.filter(c=>c.status==='in_progress')" :key="card.id">
-                      <div class="jira-card" :class="card.highlighted ? 'highlighted' : ''">
+                      <div class="jira-card" :class="card.highlighted?'highlighted':''">
                         <div class="jira-card-title" x-text="card.title"></div>
                         <div class="jira-card-meta">
-                          <div class="priority-dot"
-                            :class="card.priority === 'p0' ? 'p0' : card.priority === 'p1' ? 'p1' : 'p2'"></div>
+                          <div class="priority-dot" :class="card.priority==='p0'?'p0':card.priority==='p1'?'p1':'p2'">
+                          </div>
                           <span class="jira-id" x-text="card.id"></span>
-                          <div class="jira-assignee"
-                            x-text="card.assignee ? card.assignee.charAt(0).toUpperCase() : '?'"></div>
+                          <div class="jira-assignee" x-text="card.assignee?card.assignee.charAt(0).toUpperCase():'?'">
+                          </div>
                         </div>
                       </div>
                     </template>
-                    <div x-show="jiraCards.filter(c=>c.status==='in_progress').length === 0"
+                    <div x-show="jiraCards.filter(c=>c.status==='in_progress').length===0"
                       style="font-size:11px;color:var(--text-3);padding:12px;text-align:center;">Nothing in progress
                     </div>
                   </div>
                 </div>
-                <!-- DONE -->
                 <div>
-                  <div class="jira-col-header" style="color:var(--green);">
-                    Done
-                    <span class="jira-col-count"
-                      x-text="jiraCards.filter(c=>c.status==='closed'||c.status==='done').length"></span>
-                  </div>
+                  <div class="jira-col-header" style="color:var(--green);">Done <span class="jira-col-count"
+                      x-text="jiraCards.filter(c=>c.status==='closed'||c.status==='done').length"></span></div>
                   <div class="jira-col-body">
                     <template x-for="card in jiraCards.filter(c=>c.status==='closed'||c.status==='done')"
                       :key="card.id">
-                      <div class="jira-card" style="opacity:0.7;">
+                      <div class="jira-card" style="opacity:0.65;">
                         <div class="jira-card-title" style="text-decoration:line-through;" x-text="card.title"></div>
-                        <div class="jira-card-meta">
-                          <span class="jira-id" x-text="card.id"></span>
-                        </div>
+                        <div class="jira-card-meta"><span class="jira-id" x-text="card.id"></span></div>
                       </div>
                     </template>
-                    <div x-show="jiraCards.filter(c=>c.status==='closed'||c.status==='done').length === 0"
+                    <div x-show="jiraCards.filter(c=>c.status==='closed'||c.status==='done').length===0"
                       style="font-size:11px;color:var(--text-3);padding:12px;text-align:center;">Nothing done yet</div>
                   </div>
                 </div>
@@ -1717,35 +1820,29 @@
             </div>
           </div>
 
-          <!-- ======================== ZENDESK ======================== -->
-          <div x-show="activeAppTab === 'zendesk'">
+          <!-- ════ ZENDESK ════ -->
+          <div x-show="activeAppTab==='zendesk'">
             <div class="zd-header">
               <span class="zd-logo">Zendesk</span>
               <input class="zd-search" placeholder="Search tickets..." readonly />
-              <template x-for="[app, ver] in Object.entries(schemaVersions)" :key="app">
-                <span x-show="app === 'zendesk'" class="schema-pill" x-text="'schema ' + ver"></span>
+              <template x-for="[app,ver] in Object.entries(schemaVersions)" :key="app">
+                <span x-show="app==='zendesk'" class="schema-pill" x-text="'schema '+ver"></span>
               </template>
               <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
                 <div class="badge" style="background:rgba(255,255,255,0.15);color:#fff;font-size:10px;"
-                  x-text="zdTickets.filter(t=>t.state==='open'||t.state==='new').length + ' open'"></div>
+                  x-text="zdTickets.filter(t=>t.state==='open'||t.state==='new').length+' open'"></div>
               </div>
             </div>
             <div class="zd-layout" style="height:calc(100% - 42px);">
               <div class="zd-sidebar">
                 <div class="zd-nav-group">
                   <div class="zd-nav-title">Views</div>
-                  <div class="zd-nav-item active">
-                    All tickets
-                    <span class="zd-count" x-text="zdTickets.length"></span>
+                  <div class="zd-nav-item active">All tickets <span class="zd-count" x-text="zdTickets.length"></span>
                   </div>
-                  <div class="zd-nav-item">
-                    Open
-                    <span class="zd-count" x-text="zdTickets.filter(t=>t.state==='open').length"></span>
-                  </div>
-                  <div class="zd-nav-item">
-                    New
-                    <span class="zd-count" x-text="zdTickets.filter(t=>t.state==='new').length"></span>
-                  </div>
+                  <div class="zd-nav-item">Open <span class="zd-count"
+                      x-text="zdTickets.filter(t=>t.state==='open').length"></span></div>
+                  <div class="zd-nav-item">New <span class="zd-count"
+                      x-text="zdTickets.filter(t=>t.state==='new').length"></span></div>
                   <div class="zd-nav-item">Pending</div>
                   <div class="zd-nav-item">Resolved</div>
                 </div>
@@ -1757,7 +1854,6 @@
                 </div>
               </div>
               <div class="zd-tickets">
-                <!-- Header row -->
                 <div
                   style="display:grid;grid-template-columns:60px 1fr 80px 90px 80px;gap:12px;padding:6px 14px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;color:var(--text-3);margin-bottom:4px;">
                   <span>ID</span><span>Subject</span><span
@@ -1765,32 +1861,32 @@
                     style="text-align:center;">Status</span>
                 </div>
                 <template x-for="ticket in zdTickets" :key="ticket.id">
-                  <div class="zd-ticket-row" :class="ticket.highlighted ? 'highlighted' : ''">
+                  <div class="zd-ticket-row" :class="ticket.highlighted?'highlighted':''">
                     <span class="zd-tid" x-text="ticket.id"></span>
                     <span class="zd-subject" x-text="ticket.subject"></span>
                     <div class="zd-urgency">
                       <span class="urgency-badge"
                         :class="ticket.urgency==='p0'||ticket.urgency==='high'?'urg-high':ticket.urgency==='p1'||ticket.urgency==='medium'?'urg-medium':'urg-low'"
-                        x-text="ticket.urgency || 'p2'"></span>
+                        x-text="ticket.urgency||'p2'"></span>
                     </div>
-                    <span class="zd-agent" x-text="ticket.agent || '—'"></span>
-                    <div class="zd-status" style="text-align:center;">
+                    <span class="zd-agent" x-text="ticket.agent||'—'"></span>
+                    <div class="zd-status">
                       <span class="status-badge"
                         :class="ticket.state==='open'?'status-open':ticket.state==='pending'?'status-pending':ticket.state==='resolved'?'status-resolved':'status-new'"></span>
                       <span style="font-size:10px;color:var(--text-2);margin-left:4px;"
-                        x-text="ticket.state || 'new'"></span>
+                        x-text="ticket.state||'new'"></span>
                     </div>
                   </div>
                 </template>
-                <div x-show="zdTickets.length === 0"
+                <div x-show="zdTickets.length===0"
                   style="font-size:12px;color:var(--text-3);padding:24px;text-align:center;">No tickets loaded — reset
                   to start an episode.</div>
               </div>
             </div>
           </div>
 
-          <!-- ======================== SALESFORCE ======================== -->
-          <div x-show="activeAppTab === 'salesforce'">
+          <!-- ════ SALESFORCE ════ -->
+          <div x-show="activeAppTab==='salesforce'">
             <div class="sf-header">
               <span class="sf-logo">Salesforce</span>
               <div class="sf-tabs">
@@ -1798,12 +1894,11 @@
                 <div class="sf-tab">Opportunities</div>
                 <div class="sf-tab">Pipeline</div>
               </div>
-              <template x-for="[app, ver] in Object.entries(schemaVersions)" :key="app">
-                <span x-show="app === 'salesforce'" class="schema-pill" x-text="'schema ' + ver"></span>
+              <template x-for="[app,ver] in Object.entries(schemaVersions)" :key="app">
+                <span x-show="app==='salesforce'" class="schema-pill" x-text="'schema '+ver"></span>
               </template>
             </div>
             <div class="sf-body">
-              <!-- Pipeline stages -->
               <div class="sf-pipeline">
                 <div class="sf-pipeline-title">Deal Pipeline</div>
                 <div class="sf-stages">
@@ -1814,49 +1909,46 @@
                   <div class="sf-stage">Closed Won</div>
                 </div>
               </div>
-
-              <!-- Account cards -->
               <div style="font-size:12px;font-weight:600;color:var(--text-1);margin-bottom:10px;">Accounts</div>
               <template x-for="acct in sfAccounts" :key="acct.id">
-                <div class="sf-account-card" :class="acct.highlighted ? 'highlighted' : ''">
+                <div class="sf-account-card" :class="acct.highlighted?'highlighted':''">
                   <div class="sf-avatar" x-text="acct.name.charAt(0)"></div>
                   <div>
                     <div class="sf-company" x-text="acct.name"></div>
                     <div class="sf-meta">
                       <span class="health-dot"
                         :class="acct.health==='green'?'health-green':acct.health==='yellow'?'health-yellow':'health-red'"></span>
-                      <span x-text="acct.stage || 'Qualified'"></span>
+                      <span x-text="acct.stage||'Qualified'"></span>
                       <span style="margin:0 6px;color:var(--border);">·</span>
-                      <span x-text="acct.owner ? 'Owner: ' + acct.owner : 'Unassigned'"></span>
+                      <span x-text="acct.owner?'Owner: '+acct.owner:'Unassigned'"></span>
                       <template x-if="acct.churn_risk">
-                        <span style="margin-left:6px;" class="badge"
-                          style="background:#FEE2E2;color:var(--red);font-size:10px;">Churn Risk</span>
+                        <span class="badge"
+                          style="margin-left:6px;background:#FEE2E2;color:var(--red);font-size:10px;">Churn Risk</span>
                       </template>
                     </div>
                   </div>
                   <div style="text-align:right;">
-                    <div class="sf-arr" x-text="acct.arr ? '$' + (acct.arr/1000).toFixed(0) + 'K' : '—'"></div>
+                    <div class="sf-arr" x-text="acct.arr?'$'+(acct.arr/1000).toFixed(0)+'K':'—'"></div>
                     <div style="font-size:10px;color:var(--text-3);">ARR</div>
                   </div>
                 </div>
               </template>
-              <div x-show="sfAccounts.length === 0"
+              <div x-show="sfAccounts.length===0"
                 style="font-size:12px;color:var(--text-3);padding:24px;text-align:center;">No accounts loaded — reset to
                 start an episode.</div>
             </div>
           </div>
 
-          <!-- ======================== WORKDAY ======================== -->
-          <div x-show="activeAppTab === 'workday'">
+          <!-- ════ WORKDAY ════ -->
+          <div x-show="activeAppTab==='workday'">
             <div class="wd-header">
               <span class="wd-logo">Workday</span>
               <span class="wd-tagline">People &amp; HR Operations</span>
-              <template x-for="[app, ver] in Object.entries(schemaVersions)" :key="app">
-                <span x-show="app === 'workday'" class="schema-pill" x-text="'schema ' + ver"></span>
+              <template x-for="[app,ver] in Object.entries(schemaVersions)" :key="app">
+                <span x-show="app==='workday'" class="schema-pill" x-text="'schema '+ver"></span>
               </template>
             </div>
             <div class="wd-body">
-              <!-- Stats -->
               <div class="wd-stat-row">
                 <div class="wd-stat">
                   <div class="wd-stat-val" x-text="wdEmployees.length"></div>
@@ -1867,32 +1959,30 @@
                   <div class="wd-stat-label">Pending Tasks</div>
                 </div>
                 <div class="wd-stat">
-                  <div class="wd-stat-val" x-text="slaLogged ? '1' : '0'"></div>
+                  <div class="wd-stat-val" x-text="slaLogged?'1':'0'"></div>
                   <div class="wd-stat-label">SLA Events</div>
                 </div>
               </div>
-
-              <!-- Employee table -->
               <div class="wd-section-title">Employee Records</div>
               <div class="wd-tasks-header">
                 <span>Employee</span><span>Department</span><span>Level</span><span>Status</span>
               </div>
               <template x-for="emp in wdEmployees" :key="emp.id">
-                <div class="wd-task-row" :class="emp.highlighted ? 'highlighted' : ''">
+                <div class="wd-task-row" :class="emp.highlighted?'highlighted':''">
                   <div>
                     <div class="wd-emp" x-text="emp.name"></div>
                     <div style="font-size:10px;font-family:var(--font-mono);color:var(--text-3);" x-text="emp.id"></div>
                   </div>
-                  <span class="wd-dept" x-text="emp.department || '—'"></span>
-                  <span class="wd-level" x-text="emp.level || '—'"></span>
+                  <span class="wd-dept" x-text="emp.department||'—'"></span>
+                  <span class="wd-level" x-text="emp.level||'—'"></span>
                   <div>
                     <span class="badge"
                       :style="emp.status==='active'?'background:#D1FAE5;color:#065F46;':emp.status==='pending'?'background:#FEF3C7;color:#92400E;':'background:var(--bg);color:var(--text-2);'"
-                      x-text="emp.status || 'active'"></span>
+                      x-text="emp.status||'active'"></span>
                   </div>
                 </div>
               </template>
-              <div x-show="wdEmployees.length === 0"
+              <div x-show="wdEmployees.length===0"
                 style="font-size:12px;color:var(--text-3);padding:24px;text-align:center;">No employee records — reset
                 to start an episode.</div>
             </div>
@@ -1901,7 +1991,7 @@
         </div><!-- /app-inner -->
       </div><!-- /app-content -->
 
-      <!-- AGENT LOG (bottom strip) -->
+      <!-- ── Agent Log ── -->
       <div class="agent-log">
         <div class="log-header">
           <span class="log-title">Agent Log</span>
@@ -1910,33 +2000,30 @@
               <div class="live-badge-dot live-dot"></div>
               Live
             </div>
-            <button @click="actionLog = []"
-              style="font-size:11px;color:var(--text-3);cursor:pointer;background:none;border:none;padding:0;">
-              Clear
-            </button>
+            <button @click="actionLog=[]"
+              style="font-size:11px;color:var(--text-3);cursor:pointer;background:none;border:none;padding:0;">Clear</button>
           </div>
         </div>
         <div class="log-scroll" id="log-scroll">
-          <div x-show="actionLog.length === 0" style="font-size:11px;color:var(--text-3);padding:12px 0;">
-            Waiting for episode to start…
-          </div>
-          <template x-for="(entry, i) in actionLog" :key="i">
+          <div x-show="actionLog.length===0" style="font-size:11px;color:var(--text-3);padding:12px 0;">Waiting for
+            episode to start…</div>
+          <template x-for="(entry,i) in actionLog" :key="i">
             <div class="log-row">
-              <span class="log-step" x-text="'#' + entry.step"></span>
+              <span class="log-step" x-text="'#'+entry.step"></span>
               <div class="log-indicator"
                 :class="entry.type==='success'?'ind-success':entry.type==='error'?'ind-error':entry.type==='reset'?'ind-reset':'ind-info'">
               </div>
               <div class="log-body">
                 <div class="log-tags">
                   <template x-if="entry.app">
-                    <span class="log-app-tag" :class="'tag-' + entry.app" x-text="entry.app"></span>
+                    <span class="log-app-tag" :class="'tag-'+entry.app" x-text="entry.app"></span>
                   </template>
                   <template x-if="entry.operation">
-                    <span class="log-op" x-text="entry.operation + '()'"></span>
+                    <span class="log-op" x-text="entry.operation+'()'"></span>
                   </template>
-                  <template x-if="entry.reward !== undefined">
-                    <span class="log-reward" :style="entry.reward >= 0 ? 'color:var(--green)' : 'color:var(--red)'"
-                      x-text="(entry.reward >= 0 ? '+' : '') + entry.reward.toFixed(4)"></span>
+                  <template x-if="entry.reward!==undefined">
+                    <span class="log-reward" :style="entry.reward>=0?'color:var(--green)':'color:var(--red)'"
+                      x-text="(entry.reward>=0?'+':'')+entry.reward.toFixed(4)"></span>
                   </template>
                 </div>
                 <div class="log-msg" x-text="entry.message"></div>
@@ -1948,54 +2035,50 @@
 
     </main>
 
-    <!-- RIGHT SIDEBAR: Metrics -->
+    <!-- ── RIGHT SIDEBAR ── -->
     <aside class="sidebar-right">
 
-      <!-- Score gauge -->
       <div class="score-block">
         <div class="section-label" style="text-align:left;">Episode Score</div>
         <div class="score-gauge-wrap">
           <canvas id="gaugeChart" width="110" height="110"></canvas>
           <div class="score-center">
-            <div class="score-val" x-text="(currentScore * 100).toFixed(0)"></div>
+            <div class="score-val" x-text="(currentScore*100).toFixed(0)"></div>
             <div class="score-sub">/ 100</div>
           </div>
         </div>
         <div style="font-size:11px;color:var(--text-2);">
-          <span x-text="stepCount + ' steps'"></span>
+          <span x-text="stepCount+' steps'"></span>
           <span style="margin:0 6px;color:var(--border);">·</span>
-          <span x-text="maxSteps + ' max'"></span>
+          <span x-text="maxSteps+' max'"></span>
         </div>
       </div>
 
-      <!-- Reward breakdown -->
       <div class="breakdown-block">
         <div class="section-label">Score Breakdown</div>
         <template x-for="comp in rewardComponents" :key="comp.key">
           <div class="breakdown-row">
             <div class="breakdown-label-row">
               <span class="breakdown-label" x-text="comp.label"></span>
-              <span class="breakdown-pct" x-text="(comp.value * 100).toFixed(0) + '%'"></span>
+              <span class="breakdown-pct" x-text="(comp.value*100).toFixed(0)+'%'"></span>
             </div>
             <div class="bar-track">
-              <div class="bar-fill" :style="'width:' + (comp.value * 100) + '%;background:' + comp.color"></div>
+              <div class="bar-fill" :style="'width:'+(comp.value*100)+'%;background:'+comp.color"></div>
             </div>
           </div>
         </template>
       </div>
 
-      <!-- Reward curve -->
       <div style="padding:14px 16px;border-bottom:1px solid var(--border);flex-shrink:0;">
         <div class="section-label">Reward Per Step</div>
         <canvas id="rewardChart" style="width:100%;max-height:90px;"></canvas>
       </div>
 
-      <!-- Episode stats -->
       <div class="stats-block">
         <div class="section-label">Episode Stats</div>
         <div class="stat-row">
           <span class="stat-label">Violations</span>
-          <span class="stat-val" :style="violationCount > 0 ? 'color:var(--red)' : 'color:var(--green)'"
+          <span class="stat-val" :style="violationCount>0?'color:var(--red)':'color:var(--green)'"
             x-text="violationCount"></span>
         </div>
         <div class="stat-row">
@@ -2004,20 +2087,18 @@
         </div>
         <div class="stat-row">
           <span class="stat-label">Schema errors</span>
-          <span class="stat-val" :style="schemaErrorCount > 0 ? 'color:var(--red)' : ''"
-            x-text="schemaErrorCount"></span>
+          <span class="stat-val" :style="schemaErrorCount>0?'color:var(--red)':''" x-text="schemaErrorCount"></span>
         </div>
         <div class="stat-row">
           <span class="stat-label">Workflow</span>
-          <span class="stat-val" x-text="workflowId || '—'"></span>
+          <span class="stat-val" x-text="workflowId||'—'"></span>
         </div>
       </div>
 
-      <!-- Violations -->
       <div class="violations-block">
         <div class="section-label">Rule Violations</div>
-        <div x-show="violations.length === 0" style="font-size:11px;color:var(--text-3);">None this episode.</div>
-        <template x-for="(v, i) in violations.slice(-10)" :key="i">
+        <div x-show="violations.length===0" style="font-size:11px;color:var(--text-3);">None this episode.</div>
+        <template x-for="(v,i) in violations.slice(-10)" :key="i">
           <div class="violation-item" x-text="v"></div>
         </template>
       </div>
@@ -2055,10 +2136,12 @@
           { id: 'workday', label: 'Workday', color: '#FF6B35' },
         ],
         activeAppTab: 'zendesk',
-        appStates: { zendesk: '', jira: '', salesforce: '', workday: '' },
-        appOpenCounts: { zendesk: 0, jira: 0, salesforce: 0, workday: 0 },
 
-        // Structured app data for rich UIs
+        // ★ cinematicAction drives the action banner and tab switching
+        // Set synchronously on every step event — no async queue needed
+        cinematicAction: null,
+
+        appOpenCounts: { zendesk: 0, jira: 0, salesforce: 0, workday: 0 },
         jiraCards: [],
         zdTickets: [],
         sfAccounts: [],
@@ -2084,6 +2167,7 @@
         violations: [],
         actionLog: [],
 
+        // ─────────────────────────────────────────
         async init() {
           await this.checkHealth();
           _chartInst = this._initRewardChart();
@@ -2107,13 +2191,7 @@
               body: JSON.stringify({ workflow_id: this.selectedWorkflow }),
             });
             const data = await r.json();
-            this.actionLog = [];
-            this.rewardHistory = [];
-            this.violationCount = 0;
-            this.schemaAdaptCount = 0;
-            this.schemaErrorCount = 0;
-            this.violations = [];
-            this.slaLogged = false;
+            this._clearEpisodeState();
             this._applyObservation(data.observation, null, 0);
             this._updateChart();
             this._updateGauge();
@@ -2126,54 +2204,104 @@
           }
         },
 
+        _clearEpisodeState() {
+          this.actionLog = [];
+          this.rewardHistory = [];
+          this.violationCount = 0;
+          this.schemaAdaptCount = 0;
+          this.schemaErrorCount = 0;
+          this.violations = [];
+          this.slaLogged = false;
+          this.cinematicAction = null;
+        },
+
+        // ─────────────────────────────────────────
+        // startAgent — plain EventSource, no queue, no async handler
+        // The cinematic tab switch and banner update happen synchronously
+        // inside _handleSSEEvent, which is always called from onmessage.
+        // Pacing between steps comes from asyncio.sleep(0.3) on the server.
         startAgent() {
           if (this.isRunning) return;
           this.isRunning = true;
+          this.cinematicAction = null;
           const url = `${this.envUrl}/ui/run-agent?workflow_id=${this.selectedWorkflow}`;
           _sseInst = new EventSource(url);
+
           _sseInst.onmessage = (e) => {
             try {
               const evt = JSON.parse(e.data);
               this._handleSSEEvent(evt);
             } catch { }
           };
+
           _sseInst.onerror = () => {
+            // Ignore error noise after we've already closed the stream ourselves
+            if (!_sseInst || !this.isRunning) return;
             this.isRunning = false;
-            if (_sseInst) { _sseInst.close(); _sseInst = null; }
+            this.cinematicAction = null;
+            _sseInst.close(); _sseInst = null;
             this._pushLog({ type: 'error', step: this.stepCount, message: 'SSE connection error.' });
           };
         },
 
+        // Delay close so any in-flight 'done' event still arrives
         stopAgent() {
           this.isRunning = false;
-          if (_sseInst) { _sseInst.close(); _sseInst = null; }
+          this.cinematicAction = null;
+          const inst = _sseInst; _sseInst = null;
+          if (inst) setTimeout(() => inst.close(), 1500);
         },
 
+        // ─────────────────────────────────────────
+        // _handleSSEEvent — SYNCHRONOUS (no await, no sleep)
+        // This is the key fix: removing the async queue that caused the deadlock.
         _handleSSEEvent(evt) {
           if (evt.type === 'reset') {
-            this.actionLog = [];
-            this.rewardHistory = [];
-            this.violationCount = 0;
-            this.violations = [];
-            this.schemaAdaptCount = 0;
-            this.schemaErrorCount = 0;
-            this.slaLogged = false;
+            this._clearEpisodeState();
             this._applyObservation(evt.observation, null, 0);
             this._pushLog({ type: 'reset', step: 0, message: `Episode started — Workflow ${evt.workflow_id}` });
+
           } else if (evt.type === 'step') {
             const obs = evt.observation;
+
+            // ★ CINEMATIC: switch tab immediately + show action banner
+            // This is the "movie" effect — happens the instant the event arrives
+            if (evt.action) {
+              this.activeAppTab = evt.action.app;
+              this.cinematicAction = {
+                app: evt.action.app,
+                operation: evt.action.operation,
+                args: evt.action.args || {},
+                step: evt.step,
+                summary: this.actionSummary(evt.action),
+              };
+            }
+
             this._applyObservation(obs, evt.action, evt.reward);
-            if (obs.message && obs.message.includes('Stale schema')) this.schemaErrorCount++;
-            if (obs.message && obs.message.includes('SLA event logged')) this.slaLogged = true;
+
+            // Track schema events
+            if (obs.message && (obs.message.includes('Stale schema') || obs.message.includes('Schema error') || obs.message.includes('schema_error'))) {
+              this.schemaErrorCount++;
+            }
+            if (obs.message && (obs.message.includes('adapted') || obs.message.includes('schema_adapted'))) {
+              this.schemaAdaptCount++;
+            }
+            if (obs.message && obs.message.includes('SLA event logged')) {
+              this.slaLogged = true;
+            }
+
             this.rewardHistory.push(evt.reward);
             this._updateChart();
             this._updateGauge();
+
             if (obs.rule_violations && obs.rule_violations.length > 0) {
               this.violations.push(...obs.rule_violations);
               this.violationCount += obs.rule_violations.length;
             }
-            // Highlight touched app card
+
+            // ★ Update the card in the active app UI
             this._highlightAppCard(evt.action, obs.message);
+
             this._pushLog({
               type: evt.reward < 0 ? 'error' : (evt.reward > 0.05 ? 'success' : 'info'),
               step: evt.step,
@@ -2182,122 +2310,154 @@
               reward: evt.reward,
               message: obs.message,
             });
-            if (evt.done) this.isRunning = false;
+
+            // Max steps hit
+            if (evt.done) {
+              this.isRunning = false;
+              this.cinematicAction = null;
+              this._pushLog({
+                type: 'info', step: evt.step,
+                message: `Max steps reached. Score: ${(obs.current_score || 0).toFixed(3)} | ${obs.pending_steps?.length ? obs.pending_steps.length + ' step(s) remaining' : 'Workflow complete'}`,
+              });
+            }
+
           } else if (evt.type === 'done') {
+            const score = evt.final_score || this.currentScore;
+            this.cinematicAction = null;
+            this.currentScore = score;
+            this._updateGauge();
+            this.isRunning = false;
             this._pushLog({
-              type: 'info', step: evt.steps,
-              message: `Episode complete. Final score: ${(evt.final_score || 0).toFixed(3)} | Workflow: ${evt.completed ? 'completed' : 'incomplete'}`,
+              type: evt.completed ? 'success' : 'info',
+              step: evt.steps,
+              message: `Episode ended. Final score: ${score.toFixed(3)} | Workflow ${evt.completed ? 'completed' : 'incomplete'} | ${evt.steps} steps`,
             });
-            this.stopAgent();
+            const inst = _sseInst; _sseInst = null;
+            if (inst) inst.close();
+
           } else if (evt.type === 'error') {
-            this._pushLog({ type: 'error', step: evt.step || this.stepCount, message: evt.message });
-            this.stopAgent();
+            this.cinematicAction = null;
+            this.isRunning = false;
+            this._pushLog({ type: 'error', step: evt.step || this.stepCount, message: evt.message || 'Unknown error' });
+            const inst = _sseInst; _sseInst = null;
+            if (inst) inst.close();
           }
         },
 
+        // ─────────────────────────────────────────
+        // Helper labels for the action banner
+        appLabel(app) { return this.appTabs.find(t => t.id === app)?.label || 'App'; },
+        appInitial(app) { return this.appLabel(app).slice(0, 2).toUpperCase(); },
+        appColor(app) { return this.appTabs.find(t => t.id === app)?.color || '#111827'; },
+
+        operationLabel(action) {
+          if (!action) return 'Waiting for agent action';
+          return `${this.appLabel(action.app)}: ${String(action.operation || '').replace(/_/g, ' ')}()`;
+        },
+
+        actionSummary(action) {
+          const args = action?.args || {};
+          const id = args.ticket_number || args.issue_id || args.account_id ||
+            args.employee_id || args.ticket_id || args.customer_id;
+          const target = id ? `Target: ${id}` : 'Inspecting records';
+          const argStr = JSON.stringify(args).slice(0, 80);
+          return `${target} · ${argStr}`;
+        },
+
+        // ─────────────────────────────────────────
+        // ★ _highlightAppCard — updates the card that the agent just touched
+        // Also handles create / update mutations so the UI reflects state changes
         _highlightAppCard(action, message) {
           if (!action) return;
           const app = action.app;
           const args = action.args || {};
 
-          // Clear previous highlights
+          // Clear all highlights first
           this.jiraCards = this.jiraCards.map(c => ({ ...c, highlighted: false }));
           this.zdTickets = this.zdTickets.map(t => ({ ...t, highlighted: false }));
           this.sfAccounts = this.sfAccounts.map(a => ({ ...a, highlighted: false }));
           this.wdEmployees = this.wdEmployees.map(e => ({ ...e, highlighted: false }));
 
           if (app === 'jira') {
-            this.activeAppTab = 'jira';
             const id = args.issue_id || 'JIRA-001';
             this.jiraCards = this.jiraCards.map(c => ({ ...c, highlighted: c.id === id }));
-            // If a new issue was created, parse from message
-            if (action.operation === 'create_issue' && message && message.includes('Created JIRA-')) {
+
+            if (action.operation === 'create_issue' && message) {
               const m = message.match(/Created (JIRA-\d+)/);
-              if (m) {
-                const newId = m[1];
-                if (!this.jiraCards.find(c => c.id === newId)) {
-                  this.jiraCards = [{
-                    id: newId, title: args.title || 'New Issue',
-                    priority: args.priority || args.severity || 'p1',
-                    assignee: args.assignee || args.owner || null,
-                    status: 'open',
-                    linked_zendesk: args.linked_zendesk || args.zendesk_ticket || null,
-                    highlighted: true,
-                  }, ...this.jiraCards];
-                }
+              if (m && !this.jiraCards.find(c => c.id === m[1])) {
+                this.jiraCards = [{
+                  id: m[1], title: args.title || 'New Issue',
+                  priority: args.priority || args.severity || args.urgency_level || 'p1',
+                  assignee: args.assignee || args.owner || args.assigned_to || null,
+                  status: 'open',
+                  linked_zendesk: args.linked_zendesk || args.zendesk_ticket || null,
+                  highlighted: true,
+                }, ...this.jiraCards];
               }
             }
             if (action.operation === 'assign_owner' || action.operation === 'update_status') {
-              this.jiraCards = this.jiraCards.map(c => {
-                if (c.id === id) {
-                  return {
-                    ...c,
-                    assignee: args.assignee || args.owner || args.assigned_to || c.assignee,
-                    status: args.status || args.state || args.current_state || c.status,
-                    highlighted: true,
-                  };
-                }
-                return c;
+              this.jiraCards = this.jiraCards.map(c => c.id !== id ? c : {
+                ...c,
+                assignee: args.assignee || args.owner || args.assigned_to || c.assignee,
+                status: args.status || args.state || args.current_state || c.status,
+                highlighted: true,
               });
             }
             if (action.operation === 'link_zendesk_ticket') {
-              this.jiraCards = this.jiraCards.map(c => c.id === id ? { ...c, linked_zendesk: args.zendesk_ticket_number, highlighted: true } : c);
+              this.jiraCards = this.jiraCards.map(c => c.id !== id ? c : { ...c, linked_zendesk: args.zendesk_ticket_number, highlighted: true });
             }
           }
 
           if (app === 'zendesk') {
-            this.activeAppTab = 'zendesk';
             const id = args.ticket_number || 'ZD-001';
             this.zdTickets = this.zdTickets.map(t => ({ ...t, highlighted: t.id === id }));
             if (action.operation === 'acknowledge_ticket') {
-              this.zdTickets = this.zdTickets.map(t => t.id === id ? { ...t, state: 'open', highlighted: true } : t);
+              this.zdTickets = this.zdTickets.map(t => t.id !== id ? t : { ...t, state: 'open', highlighted: true });
             }
             if (action.operation === 'assign_agent') {
-              this.zdTickets = this.zdTickets.map(t => t.id === id ? { ...t, agent: args.agent_email || args.handler || args.assigned_agent, highlighted: true } : t);
+              const agent = args.agent_email || args.handler || args.assigned_agent;
+              this.zdTickets = this.zdTickets.map(t => t.id !== id ? t : { ...t, agent, highlighted: true });
             }
             if (action.operation === 'resolve_ticket') {
-              this.zdTickets = this.zdTickets.map(t => t.id === id ? { ...t, state: 'resolved', highlighted: true } : t);
+              this.zdTickets = this.zdTickets.map(t => t.id !== id ? t : { ...t, state: 'resolved', highlighted: true });
             }
           }
 
           if (app === 'salesforce') {
-            this.activeAppTab = 'salesforce';
             const id = args.account_id || 'ACME-001';
             this.sfAccounts = this.sfAccounts.map(a => ({ ...a, highlighted: a.id === id }));
             if (action.operation === 'flag_churn_risk') {
-              this.sfAccounts = this.sfAccounts.map(a => a.id === id ? { ...a, health: 'red', churn_risk: true, highlighted: true } : a);
+              this.sfAccounts = this.sfAccounts.map(a => a.id !== id ? a : { ...a, health: 'red', churn_risk: true, highlighted: true });
             }
             if (action.operation === 'assign_account_owner') {
               const owner = args.owner || args.owner_name || args.account_owner || args.rep_email;
-              this.sfAccounts = this.sfAccounts.map(a => a.id === id ? { ...a, owner, highlighted: true } : a);
+              this.sfAccounts = this.sfAccounts.map(a => a.id !== id ? a : { ...a, owner, highlighted: true });
             }
           }
 
           if (app === 'workday') {
-            this.activeAppTab = 'workday';
             const id = args.employee_id || 'EMP-001';
             this.wdEmployees = this.wdEmployees.map(e => ({ ...e, highlighted: e.id === id }));
-            if (action.operation === 'create_onboarding_task') {
-              if (!this.wdEmployees.find(e => e.id === id)) {
-                this.wdEmployees = [{
-                  id, name: args.name || id,
-                  department: args.department || 'support',
-                  level: args.level || args.job_level || args.seniority || 'IC1',
-                  status: 'pending', highlighted: true,
-                }, ...this.wdEmployees];
-              }
+            if (action.operation === 'create_onboarding_task' && !this.wdEmployees.find(e => e.id === id)) {
+              this.wdEmployees = [{
+                id, name: args.name || id,
+                department: args.department || 'support',
+                level: args.level || args.job_level || args.seniority || 'IC1',
+                status: 'pending', highlighted: true,
+              }, ...this.wdEmployees];
             }
             if (action.operation === 'log_sla_event') this.slaLogged = true;
           }
         },
 
+        // ─────────────────────────────────────────
         _applyObservation(obs, action, reward) {
           this.workflowId = obs.workflow_id || '';
           this.workflowGoal = obs.workflow_goal || '';
           this.schemaHints = obs.schema_hints || {};
           this.activeRules = obs.active_rules || {};
           this.stepCount = obs.step_count || 0;
-          this.completedSteps = (obs.completed_steps || []).map(id => id);
+          this.completedSteps = (obs.completed_steps || []).slice();
           this.policyDriftActive = obs.policy_drift_active || false;
 
           const newScore = obs.current_score || 0.001;
@@ -2336,41 +2496,34 @@
           const rb = obs.reward_breakdown || {};
           this.rewardComponents.forEach(c => { c.value = rb[c.key] ?? 0; });
 
-          // Parse app states into structured data
           if (obs.app_states) this._parseAppStates(obs.app_states);
         },
 
+        // ─────────────────────────────────────────
         _parseAppStates(states) {
-          // Parse the string representation from get_state_view()
-          // into structured objects for our rich UIs.
-          // We do a best-effort parse of the dict-string format.
           const parseDictStr = (str) => {
             if (!str) return [];
             return str.split('\n').filter(Boolean).map(line => {
               try {
-                // Convert Python dict string to JSON-parseable
-                const json = line
-                  .replace(/'/g, '"')
-                  .replace(/True/g, 'true')
-                  .replace(/False/g, 'false')
-                  .replace(/None/g, 'null');
-                return JSON.parse(json);
+                return JSON.parse(
+                  line.replace(/'/g, '"')
+                    .replace(/\bTrue\b/g, 'true')
+                    .replace(/\bFalse\b/g, 'false')
+                    .replace(/\bNone\b/g, 'null')
+                );
               } catch { return null; }
             }).filter(Boolean);
           };
 
-          // Jira
           const jiraRaw = parseDictStr(states.jira || '');
           if (jiraRaw.length > 0 || this.jiraCards.length === 0) {
-            const existing = new Map(this.jiraCards.map(c => [c.id, c]));
+            const m = new Map(this.jiraCards.map(c => [c.id, c]));
             jiraRaw.forEach(r => {
-              const id = r.issue_id || r.id;
-              if (!id) return;
-              const ex = existing.get(id) || {};
-              existing.set(id, {
-                ...ex,
-                id,
-                title: r.title || ex.title || 'Untitled issue',
+              const id = r.issue_id || r.id; if (!id) return;
+              const ex = m.get(id) || {};
+              m.set(id, {
+                ...ex, id,
+                title: r.title || ex.title || 'Untitled',
                 priority: r.priority || r.severity || r.urgency_level || ex.priority || 'p2',
                 assignee: r.assignee || r.owner || r.assigned_to || ex.assignee || null,
                 status: r.status || r.state || r.current_state || ex.status || 'open',
@@ -2378,18 +2531,16 @@
                 highlighted: ex.highlighted || false,
               });
             });
-            this.jiraCards = Array.from(existing.values());
+            this.jiraCards = Array.from(m.values());
           }
 
-          // Zendesk
           const zdRaw = parseDictStr(states.zendesk || '');
           if (zdRaw.length > 0 || this.zdTickets.length === 0) {
-            const existing = new Map(this.zdTickets.map(t => [t.id, t]));
+            const m = new Map(this.zdTickets.map(t => [t.id, t]));
             zdRaw.forEach(r => {
-              const id = r.ticket_number || r.id;
-              if (!id) return;
-              const ex = existing.get(id) || {};
-              existing.set(id, {
+              const id = r.ticket_number || r.id; if (!id) return;
+              const ex = m.get(id) || {};
+              m.set(id, {
                 ...ex, id,
                 subject: r.title || ex.subject || 'Support ticket',
                 urgency: r.urgency || r.priority || r.impact_level || ex.urgency || 'p2',
@@ -2399,18 +2550,16 @@
                 highlighted: ex.highlighted || false,
               });
             });
-            this.zdTickets = Array.from(existing.values());
+            this.zdTickets = Array.from(m.values());
           }
 
-          // Salesforce
           const sfRaw = parseDictStr(states.salesforce || '');
           if (sfRaw.length > 0 || this.sfAccounts.length === 0) {
-            const existing = new Map(this.sfAccounts.map(a => [a.id, a]));
+            const m = new Map(this.sfAccounts.map(a => [a.id, a]));
             sfRaw.forEach(r => {
-              const id = r.account_id || r.id;
-              if (!id) return;
-              const ex = existing.get(id) || {};
-              existing.set(id, {
+              const id = r.account_id || r.id; if (!id) return;
+              const ex = m.get(id) || {};
+              m.set(id, {
                 ...ex, id,
                 name: r.company_name || ex.name || id,
                 health: r.health || r.account_health || r.risk_score || ex.health || 'green',
@@ -2421,18 +2570,16 @@
                 highlighted: ex.highlighted || false,
               });
             });
-            this.sfAccounts = Array.from(existing.values());
+            this.sfAccounts = Array.from(m.values());
           }
 
-          // Workday
           const wdRaw = parseDictStr(states.workday || '');
           if (wdRaw.length > 0 || this.wdEmployees.length === 0) {
-            const existing = new Map(this.wdEmployees.map(e => [e.id, e]));
+            const m = new Map(this.wdEmployees.map(e => [e.id, e]));
             wdRaw.forEach(r => {
-              const id = r.employee_id || r.id;
-              if (!id) return;
-              const ex = existing.get(id) || {};
-              existing.set(id, {
+              const id = r.employee_id || r.id; if (!id) return;
+              const ex = m.get(id) || {};
+              m.set(id, {
                 ...ex, id,
                 name: r.name || ex.name || id,
                 department: r.department || ex.department || '—',
@@ -2441,10 +2588,11 @@
                 highlighted: ex.highlighted || false,
               });
             });
-            this.wdEmployees = Array.from(existing.values());
+            this.wdEmployees = Array.from(m.values());
           }
         },
 
+        // ─────────────────────────────────────────
         _pushLog(entry) {
           this.actionLog.push(entry);
           this.$nextTick(() => {
