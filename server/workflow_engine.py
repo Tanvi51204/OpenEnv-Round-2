@@ -106,35 +106,25 @@ WORKFLOW_C_STEPS = [
 WORKFLOW_GOALS: Dict[str, str] = {
     "A": (
         "Workflow A — Customer Bug Fix: "
-        "A P1 bug has been reported via Zendesk (ticket ZD-001) by customer ACME-001. "
-        "Steps required: "
-        "(1) acknowledge Zendesk ticket ZD-001, "
-        "(2) create a new Jira issue linked to ZD-001, "
-        "(3) verify ACME-001's account status in Salesforce, "
-        "(4) assign the Jira issue (JIRA-001) to an engineer, "
-        "(5) log the SLA compliance event in Workday. "
-        "Use list operations if you need to discover record IDs."
+        "A P1 bug has been escalated through the support queue. "
+        "Investigate the open ticket, escalate it to the engineering tracker, "
+        "verify the affected customer's account health, ensure the issue has an assigned owner, "
+        "and record SLA compliance. "
+        "Use list operations to discover relevant record IDs before acting."
     ),
     "B": (
         "Workflow B — Employee Onboarding: "
-        "A new support engineer has joined the West team. "
-        "Employee ID: EMP-NEW-001, Name: Jordan Riley, department: support, territory: west. "
-        "Steps required: "
-        "(1) create an onboarding record in Workday for EMP-NEW-001, "
-        "(2) provision Jira access for EMP-NEW-001 via Workday, "
-        "(3) assign EMP-NEW-001 to the correct Salesforce territory (use any ACME-* account in the west region), "
-        "(4) create a Zendesk agent profile for EMP-NEW-001. "
-        "You have manager-level access."
+        "A new support engineer has joined the West team and needs to be fully set up. "
+        "Ensure their employment record exists, provision the appropriate tooling access, "
+        "assign them to the correct territory in your CRM, and create their support profile. "
+        "Query the relevant systems to identify the new employee and required accounts."
     ),
     "C": (
         "Workflow C — Churn Risk Alert: "
-        "Account ACME-003 (GlobalTech) is showing churn signals. "
-        "Steps required: "
-        "(1) flag ACME-003 as a churn risk in Salesforce, "
-        "(2) query recent support tickets for ACME-003 in Zendesk (use customer_id=ACME-003), "
-        "(3) list open Jira bugs related to ACME-003, "
-        "(4) assign an intervention owner to ACME-003 in Salesforce. "
-        "Focus account: ACME-003."
+        "An enterprise account is showing churn signals and requires immediate attention. "
+        "Flag the at-risk account, assess their recent support ticket volume and open bug history, "
+        "and assign an intervention owner. "
+        "Use discovery operations to identify the account before taking action."
     ),
 }
 

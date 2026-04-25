@@ -220,8 +220,17 @@ class OrgOSEnvironment:
 
         # Workflow progress
         completed_steps = self._workflow.get_completed()
-        pending_steps   = self._workflow.get_pending()
         workflow_goal   = self._workflow.get_goal()
+        total_steps     = len(self._workflow._steps)
+        steps_done      = len(completed_steps)
+        # Expose only a progress count — agent must infer what's next from app states
+        if steps_done == total_steps:
+            pending_steps = []
+        else:
+            pending_steps = [
+                f"{steps_done}/{total_steps} steps completed — "
+                "inspect app states and schema_hints to determine your next action."
+            ]
 
         # Reward breakdown snapshot
         breakdown = RewardBreakdown(
