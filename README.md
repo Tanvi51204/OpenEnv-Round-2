@@ -375,13 +375,13 @@ The reward function combines 5 components: workflow completion (0.30), rule comp
 | C — Churn Risk Alert | 0.25 | ~0.48 | +0.23 |
 | **Average** | **0.50** | **~0.68** | **+0.18** |
 
-![Training Curve](plots/training_curve.png)
+![Training Curve](training/plots/training_curve.png)
 *Reward per training step*
 
-![Baseline vs Trained](plots/baseline_vs_trained.png)
+![Baseline vs Trained](training/plots/baseline_vs_trained.png)
 *Per-workflow score comparison*
 
-![Score Distribution](plots/score_distribution.png)
+![Score Distribution](training/plots/score_distribution.png)
 *Episode score distribution before and after GRPO*
 
 ---
