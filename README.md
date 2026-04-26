@@ -11,7 +11,7 @@ Built for the [Meta PyTorch × Scaler OpenEnv Hackathon](https://huggingface.co/
 
 | | |
 |---|---|
-| Environment Space | **[huggingface.co/spaces/tanvibisht/orgos-openenv](https://huggingface.co/spaces/srishtichugh/orgOS)** |
+| Environment Space | **[huggingface.co/spaces/srishtichugh/orgOS](https://huggingface.co/spaces/srishtichugh/orgOS)** |
 | Training Space | **[huggingface.co/spaces/muskansingh1101/orgos-training](https://huggingface.co/spaces/muskansingh1101/orgos-training)** |
 | HF Blog Post | **[OrgOS: Teaching Agents to Survive Enterprise API Drift](https://huggingface.co/spaces/srishtichugh/orgOS/blob/main/hf_blog_post.md)** |
 | Training Notebook | **[training/grpo_orgos.ipynb](https://colab.research.google.com/drive/1BekDqh64FU0kskSnaNrFU8HEkcdexPC3?usp=sharing)** |
@@ -384,14 +384,6 @@ The reward function combines 5 components: workflow completion (0.30), rule comp
 ![Score Distribution](plots/score_distribution.png)
 *Episode score distribution before and after GRPO*
 
----
-
-## Resources
-
-- 🌐 [Environment Space](https://huggingface.co/spaces/tanvibisht/orgos-openenv)
-- 📝 [HF Blog Post](https://huggingface.co/blog/muskansingh1101/orgos-openenv)
-- 📓 [Training Notebook (Colab)](https://github.com/muskansingh1101/OpenEnv-Round-2/blob/main/training/grpo_orgos.ipynb)
-- 💻 [Environment GitHub Repo](https://github.com/muskansingh1101/OpenEnv-Round-2)
 ---
 
 MIT License · Built for Meta PyTorch × Scaler OpenEnv Hackathon Round 2
