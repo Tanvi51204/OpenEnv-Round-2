@@ -1,3 +1,11 @@
+---
+title: OrgOS
+emoji: 🏢
+colorFrom: blue
+colorTo: purple
+sdk: docker
+pinned: false
+---
 
 # OrgOS — Enterprise Workflow RL Environment
 
