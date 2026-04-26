@@ -1,0 +1,134 @@
+[ENV] status=healthy version=2.0.0
+[TRAIN_CONFIG] model=unsloth/Qwen2.5-3B-Instruct-bnb-4bit lora_r=16 max_seq_len=4096 trainable_params=29,933,568 quantization=4bit
+[EVAL_START] phase=baseline
+[EVAL] phase=baseline workflow=A episode=1 score=0.0010
+[EVAL] phase=baseline workflow=A episode=2 score=0.2500
+[EVAL] phase=baseline workflow=A episode=3 score=0.2375
+[EVAL] phase=baseline workflow=A episode=4 score=0.0500
+[EVAL] phase=baseline workflow=A episode=5 score=0.2470
+[EVAL_WORKFLOW] phase=baseline workflow=A mean=0.1571 min=0.0010 max=0.2500
+[EVAL] phase=baseline workflow=B episode=1 score=0.2500
+[EVAL] phase=baseline workflow=B episode=2 score=0.2500
+[EVAL] phase=baseline workflow=B episode=3 score=0.2500
+[EVAL] phase=baseline workflow=B episode=4 score=0.2500
+[EVAL] phase=baseline workflow=B episode=5 score=0.2500
+[EVAL_WORKFLOW] phase=baseline workflow=B mean=0.2500 min=0.2500 max=0.2500
+[EVAL] phase=baseline workflow=C episode=1 score=0.2230
+[EVAL] phase=baseline workflow=C episode=2 score=0.0595
+[EVAL] phase=baseline workflow=C episode=3 score=0.2230
+[EVAL] phase=baseline workflow=C episode=4 score=0.0595
+[EVAL] phase=baseline workflow=C episode=5 score=0.0010
+[EVAL_WORKFLOW] phase=baseline workflow=C mean=0.1132 min=0.0010 max=0.2230
+[EVAL_END] phase=baseline overall_mean=0.1734
+[TRAIN_CONFIG] algorithm=GRPO prompts=60 workflows=A,B,C prompts_per_workflow=20
+[PROMPT_DEBUG] first_prompt_tokens=1303
+[REWARD_FN_CHECK] valid_action=0.0490 invalid_action=-0.1000
+[TRAIN_CONFIG] model=unsloth/Qwen2.5-3B-Instruct-bnb-4bit lora_r=16 max_seq_len=4096 trainable_params=29,933,568 quantization=4bit
+[TRAIN_START] max_steps=80 G=4 lr=5e-06
+[TRAIN_STEP] step=1 reward=-0.0325 loss=-0.0973 kl=0.0000
+[TRAIN_STEP] step=2 reward=0.0615 loss=0.0000 kl=0.0000
+[TRAIN_STEP] step=3 reward=0.0436 loss=0.2717 kl=0.0000
+[TRAIN_STEP] step=4 reward=0.0195 loss=0.0902 kl=0.0000
+[TRAIN_STEP] step=5 reward=0.0258 loss=-0.0360 kl=0.0000
+[TRAIN_STEP] step=6 reward=-0.1121 loss=0.2567 kl=0.0000
+[TRAIN_STEP] step=7 reward=0.0033 loss=-0.0239 kl=0.0000
+[TRAIN_STEP] step=8 reward=-0.1750 loss=0.0451 kl=0.0000
+[TRAIN_STEP] step=9 reward=-0.0971 loss=0.2075 kl=0.0000
+[TRAIN_STEP] step=10 reward=0.0436 loss=-0.0145 kl=0.0001
+[TRAIN_STEP] step=11 reward=0.0033 loss=0.2299 kl=0.0001
+[TRAIN_STEP] step=12 reward=-0.1121 loss=0.2794 kl=0.0001
+[TRAIN_STEP] step=13 reward=-0.1150 loss=0.0157 kl=0.0001
+[TRAIN_STEP] step=14 reward=-0.0030 loss=0.1447 kl=0.0001
+[TRAIN_STEP] step=15 reward=0.0258 loss=0.0529 kl=0.0008
+[TRAIN_STEP] step=16 reward=-0.0146 loss=0.0710 kl=0.0002
+[TRAIN_STEP] step=17 reward=-0.0178 loss=0.0715 kl=0.0005
+[TRAIN_STEP] step=18 reward=0.0195 loss=0.0405 kl=0.0003
+[TRAIN_STEP] step=19 reward=0.0047 loss=0.0000 kl=0.0006
+[TRAIN_STEP] step=20 reward=0.0195 loss=0.1379 kl=0.0015
+[TRAIN_STEP] step=21 reward=0.0033 loss=0.2259 kl=0.0015
+[TRAIN_STEP] step=22 reward=-0.0178 loss=-0.0875 kl=0.0016
+[TRAIN_STEP] step=23 reward=-0.0746 loss=-0.0161 kl=0.0005
+[TRAIN_STEP] step=24 reward=0.0615 loss=0.0000 kl=0.0023
+[TRAIN_STEP] step=25 reward=-0.0700 loss=0.1665 kl=0.0016
+[TRAIN_STEP] step=26 reward=0.0615 loss=0.0000 kl=0.0021
+[TRAIN_STEP] step=27 reward=0.0615 loss=0.0000 kl=0.0017
+[TRAIN_STEP] step=28 reward=0.0195 loss=0.0429 kl=0.0033
+[TRAIN_STEP] step=29 reward=0.0211 loss=0.2210 kl=0.0063
+[TRAIN_STEP] step=30 reward=0.0436 loss=-0.0804 kl=0.0046
+[TRAIN_STEP] step=31 reward=0.0342 loss=0.0000 kl=0.0019
+[TRAIN_STEP] step=32 reward=-0.0521 loss=0.1682 kl=0.0031
+[TRAIN_STEP] step=33 reward=0.0342 loss=0.1024 kl=0.0052
+[TRAIN_STEP] step=34 reward=0.0342 loss=0.0000 kl=0.0030
+[TRAIN_STEP] step=35 reward=0.0436 loss=0.0979 kl=0.0030
+[TRAIN_STEP] step=36 reward=0.0258 loss=0.3306 kl=0.0018
+[TRAIN_STEP] step=37 reward=0.0490 loss=0.0000 kl=0.0019
+[TRAIN_STEP] step=38 reward=0.0615 loss=0.0000 kl=0.0037
+[TRAIN_STEP] step=39 reward=0.0615 loss=0.0000 kl=0.0024
+[TRAIN_STEP] step=40 reward=0.0436 loss=0.0039 kl=0.0163
+[TRAIN_STEP] step=41 reward=0.0342 loss=0.0000 kl=0.0141
+[TRAIN_STEP] step=42 reward=0.0436 loss=0.1721 kl=0.0072
+[TRAIN_STEP] step=43 reward=0.0615 loss=0.0000 kl=0.0037
+[TRAIN_STEP] step=44 reward=0.0615 loss=0.0000 kl=0.0122
+[TRAIN_STEP] step=45 reward=0.0342 loss=0.1661 kl=0.0238
+[TRAIN_STEP] step=46 reward=-0.1900 loss=0.1922 kl=0.0140
+[TRAIN_STEP] step=47 reward=0.0436 loss=0.0049 kl=0.0251
+[TRAIN_STEP] step=48 reward=0.0342 loss=-0.0395 kl=0.0059
+[TRAIN_STEP] step=49 reward=0.0436 loss=-0.0437 kl=0.0128
+[TRAIN_STEP] step=50 reward=-0.1900 loss=0.1363 kl=0.0156
+[TRAIN_STEP] step=51 reward=0.0342 loss=0.0000 kl=0.0210
+[TRAIN_STEP] step=52 reward=-0.0178 loss=0.0326 kl=0.0135
+[TRAIN_STEP] step=53 reward=0.0342 loss=0.0000 kl=0.0298
+[TRAIN_STEP] step=54 reward=-0.0146 loss=0.4537 kl=0.0119
+[TRAIN_STEP] step=55 reward=-0.0342 loss=0.2914 kl=0.0059
+[TRAIN_STEP] step=56 reward=-0.0164 loss=0.1776 kl=0.0142
+[TRAIN_STEP] step=57 reward=0.0342 loss=-0.0275 kl=0.0142
+[TRAIN_STEP] step=58 reward=0.0615 loss=0.0000 kl=0.0224
+[TRAIN_STEP] step=59 reward=0.0211 loss=0.1406 kl=0.0063
+[TRAIN_STEP] step=60 reward=0.0615 loss=0.0000 kl=0.0121
+[TRAIN_STEP] step=61 reward=-0.0192 loss=0.3104 kl=0.0110
+[TRAIN_STEP] step=62 reward=0.0490 loss=0.0000 kl=0.0122
+[TRAIN_STEP] step=63 reward=0.0615 loss=0.0000 kl=0.0005
+[TRAIN_STEP] step=64 reward=-0.1121 loss=0.2547 kl=0.0144
+[TRAIN_STEP] step=65 reward=0.0195 loss=0.0000 kl=0.0133
+[TRAIN_STEP] step=66 reward=-0.0402 loss=0.0749 kl=0.0122
+[TRAIN_STEP] step=67 reward=-0.0371 loss=0.5726 kl=0.0084
+[TRAIN_STEP] step=68 reward=0.0033 loss=0.2116 kl=0.0067
+[TRAIN_STEP] step=69 reward=0.0615 loss=0.0000 kl=0.0161
+[TRAIN_STEP] step=70 reward=0.0615 loss=0.0000 kl=0.0180
+[TRAIN_STEP] step=71 reward=0.0490 loss=0.0000 kl=0.0041
+[TRAIN_STEP] step=72 reward=0.0615 loss=0.0000 kl=0.0414
+[TRAIN_STEP] step=73 reward=0.0342 loss=-0.0453 kl=0.0413
+[TRAIN_STEP] step=74 reward=0.0436 loss=0.1321 kl=0.0039
+[TRAIN_STEP] step=75 reward=0.0342 loss=0.0000 kl=0.0045
+[TRAIN_STEP] step=76 reward=0.0079 loss=-0.0503 kl=0.0047
+[TRAIN_STEP] step=77 reward=0.0615 loss=0.0000 kl=0.0243
+[TRAIN_STEP] step=78 reward=0.0490 loss=0.0000 kl=0.0026
+[TRAIN_STEP] step=79 reward=0.0615 loss=0.0000 kl=0.0142
+[TRAIN_STEP] step=80 reward=0.0490 loss=0.0000 kl=0.0099
+[TRAIN_END] steps_completed=80
+[EVAL_START] phase=trained
+[EVAL] phase=trained workflow=A episode=1 score=0.2290
+[EVAL] phase=trained workflow=A episode=2 score=0.2375
+[EVAL] phase=trained workflow=A episode=3 score=0.2500
+[EVAL] phase=trained workflow=A episode=4 score=0.2500
+[EVAL] phase=trained workflow=A episode=5 score=0.2375
+[EVAL_WORKFLOW] phase=trained workflow=A mean=0.2408 min=0.2290 max=0.2500
+[EVAL] phase=trained workflow=B episode=1 score=0.2500
+[EVAL] phase=trained workflow=B episode=2 score=0.2500
+[EVAL] phase=trained workflow=B episode=3 score=0.2500
+[EVAL] phase=trained workflow=B episode=4 score=0.2500
+[EVAL] phase=trained workflow=B episode=5 score=0.2500
+[EVAL_WORKFLOW] phase=trained workflow=B mean=0.2500 min=0.2500 max=0.2500
+[EVAL] phase=trained workflow=C episode=1 score=0.2230
+[EVAL] phase=trained workflow=C episode=2 score=0.2500
+[EVAL] phase=trained workflow=C episode=3 score=0.0010
+[EVAL] phase=trained workflow=C episode=4 score=0.2470
+[EVAL] phase=trained workflow=C episode=5 score=0.2500
+[EVAL_WORKFLOW] phase=trained workflow=C mean=0.1942 min=0.0010 max=0.2500
+[EVAL_END] phase=trained overall_mean=0.2283
+[TRAIN_SUMMARY] baseline_overall=0.1734 trained_overall=0.2283 delta=+0.0549
+[ARTIFACT] training_curve.png saved
+[ARTIFACT] baseline_vs_trained.png saved
+[ARTIFACT] score_distribution.png saved
+[ARTIFACT] lora_adapter saved to /content/OpenEnv-Round-2/training/orgos_lora_adapter
+[ARTIFACT] lora_adapter saved to /content/OpenEnv-Round-2/training/orgos_lora_adapter
