@@ -1,10 +1,16 @@
 ---
-title: OrgOS
+title: OrgOS Enterprise Workflow RL Environment
 emoji: 🏢
-colorFrom: blue
-colorTo: purple
+colorFrom: indigo
+colorTo: cyan
 sdk: docker
 pinned: false
+app_port: 8000
+tags:
+  - openenv
+  - rl
+  - enterprise
+  - multi-app
 ---
 
 # OrgOS — Enterprise Workflow RL Environment
