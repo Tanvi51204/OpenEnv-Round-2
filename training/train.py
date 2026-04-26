@@ -184,9 +184,24 @@ def obs_to_text(obs: dict) -> str:
         "",
         "=== APP STATES ===",
     ]
+    # workflow-relevant apps only — skip apps the workflow doesn't touch
+    WORKFLOW_APPS = {
+        "A": {"jira", "zendesk", "salesforce", "workday"},
+        "B": {"zendesk", "salesforce", "workday"},
+        "C": {"jira", "zendesk", "salesforce"},
+    }
+    relevant = WORKFLOW_APPS.get(
+        obs.get("workflow_id", "A"),
+        {"jira", "zendesk", "salesforce", "workday"},
+    )
     for app_name, view in obs.get("app_states", {}).items():
+        if app_name not in relevant:
+            continue
         lines.append(f"  [{app_name.upper()}]")
-        lines.append(f"  {view}")
+        view_str = str(view)
+        if len(view_str) > 600:
+            view_str = view_str[:600] + "...[truncated]"
+        lines.append(f"  {view_str}")
         lines.append("")
     return "\n".join(lines)
 
@@ -260,20 +275,18 @@ def orgos_reward_fn(completions: List[str], prompts: List[str], **kwargs) -> Lis
 # ------------------------------------------------------------------
 
 def run_episode_with_model(model, tokenizer, workflow_id: str, max_steps: int = 15) -> float:
-    result  = httpx.post(f"{ENV_URL}/reset", json={"workflow_id": workflow_id}).json()
-    obs     = result["observation"]
-    history = []
+    result = httpx.post(f"{ENV_URL}/reset", json={"workflow_id": workflow_id}).json()
+    obs    = result["observation"]
 
     for _ in range(max_steps):
         if obs["done"]:
             break
 
+        # Stateless single-turn prompt — matches the GRPO training format.
+        # obs["message"] already carries last-action feedback, so no history needed.
         obs_text = obs_to_text(obs)
-        history.append({"role": "user", "content": obs_text})
-
-        messages    = list(history)
-        messages[0] = {"role": "user",
-                       "content": SYSTEM_PROMPT + "\n\n---\n\n" + messages[0]["content"]}
+        messages = [{"role": "user",
+                     "content": SYSTEM_PROMPT + "\n\n---\n\n" + obs_text}]
 
         text   = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
         inputs = tokenizer(text, return_tensors="pt").to(model.device)
@@ -289,8 +302,6 @@ def run_episode_with_model(model, tokenizer, workflow_id: str, max_steps: int = 
         action_str = tokenizer.decode(
             out[0][inputs["input_ids"].shape[1]:], skip_special_tokens=True
         ).strip()
-
-        history.append({"role": "assistant", "content": action_str})
 
         action = parse_action(action_str)
         if action is None:

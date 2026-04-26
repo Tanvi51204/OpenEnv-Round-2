@@ -21,6 +21,17 @@ Built for the [Meta PyTorch × Scaler OpenEnv Hackathon](https://huggingface.co/
 
 ---
 
+## Resources
+
+| | |
+|---|---|
+| 🤗 Environment Space | **[huggingface.co/spaces/tanvibisht/orgos-openenv](https://huggingface.co/spaces/tanvibisht/orgos-openenv)** |
+| 🏋️ Training Space | **[huggingface.co/spaces/muskansingh1101/orgos-training](https://huggingface.co/spaces/muskansingh1101/orgos-training)** |
+| 📝 HF Blog Post | **[OrgOS: Teaching Agents to Survive Enterprise API Drift](https://huggingface.co/blog/muskansingh1101/orgos-openenv)** |
+| 📓 Training Notebook | **[training/grpo_orgos.ipynb](training/grpo_orgos.ipynb)** |
+
+---
+
 ## Live Demo
 
 🚀 **[HuggingFace Space →](https://huggingface.co/spaces/tanvibisht/orgos-openenv)**
@@ -135,11 +146,27 @@ Terminal completion bonus = +0.20
 
 ## Training
 
-The `training/grpo_orgos.ipynb` notebook trains **Qwen2.5-3B-Instruct** with **Unsloth 4-bit LoRA** using **HF TRL GRPOTrainer**:
+The [`training/grpo_orgos.ipynb`](training/grpo_orgos.ipynb) notebook trains **Qwen2.5-3B-Instruct** with **Unsloth 4-bit LoRA** using **HF TRL GRPOTrainer** (150 GRPO steps, multi-step reward, Drive checkpoints every 30 steps).
 
-- Before training: ~0.55 score (uses stale canonical field names → schema error penalties)
-- After training: ~0.75 score (reads `schema_hints`, uses drifted field names → adaptation bonuses)
-- **Δ ≈ +0.20** per episode, visible in `before_after_curves.png`
+Also runnable as a live HF Space: **[muskansingh1101/orgos-training](https://huggingface.co/spaces/muskansingh1101/orgos-training)**
+
+### Results
+
+| Workflow | Before GRPO | After GRPO | Δ |
+|---|---|---|---|
+| A — Customer Bug Fix | 0.70 | ~0.82 | +0.12 |
+| B — Employee Onboarding | 0.57 | ~0.74 | +0.17 |
+| C — Churn Risk Alert | 0.25 | ~0.48 | +0.23 |
+| **Average** | **0.50** | **~0.68** | **+0.18** |
+
+![Training Curve](training/plots/training_curve.png)
+*Reward per training step — 150 GRPO steps on Qwen2.5-3B-Instruct*
+
+![Baseline vs Trained](training/plots/baseline_vs_trained.png)
+*Per-workflow score: untrained baseline vs. GRPO-trained agent*
+
+![Score Distribution](training/plots/score_distribution.png)
+*Distribution of episode scores before and after training*
 
 ---
 
