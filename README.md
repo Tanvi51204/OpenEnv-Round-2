@@ -1,17 +1,3 @@
----
-title: OrgOS Enterprise Workflow RL Environment
-emoji: 🏢
-colorFrom: indigo
-colorTo: cyan
-sdk: docker
-pinned: false
-app_port: 8000
-tags:
-  - openenv
-  - rl
-  - enterprise
-  - multi-app
----
 
 # OrgOS — Enterprise Workflow RL Environment
 
@@ -359,7 +345,7 @@ This Space trains **Qwen2.5-3B-Instruct** with **Unsloth 4-bit LoRA** using **HF
 
 OrgOS is a multi-app enterprise RL environment where an AI agent completes real business workflows across four interconnected SaaS apps (Jira, Zendesk, Salesforce, Workday). Between episodes the environment injects **schema drift** (renamed fields) and **policy changes** (tightened SLAs), forcing agents to generalize rather than memorize.
 
-🌐 **[Environment Space →](https://huggingface.co/spaces/tanvibisht/orgos-openenv)**
+🌐 **[Environment Space →](https://huggingface.co/spaces/muskansingh1101/orgos-training)**
 
 ---
 
