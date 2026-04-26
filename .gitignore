@@ -9,3 +9,7 @@ venv/
 *.env
 .DS_Store
 .claude/
+*.png
+*.jpg
+*.jpeg
+*.gif
