@@ -248,9 +248,9 @@ open http://localhost:8000
 
 The live dashboard streams a full agent run in real time — workflow steps checking off as they complete, the reward curve building step by step, schema hints visible on the left. Hit **Run Agent** to watch a live inference episode.
 
-**[Live Demo →](https://huggingface.co/spaces/YOUR_USERNAME/orgos-openenv)**
+**[Live Demo →](https://huggingface.co/spaces/srishtichugh/orgOS/)**
 
-**[GRPO Training Notebook →](https://colab.research.google.com/YOUR_NOTEBOOK_LINK)**
+**[GRPO Training Notebook →](https://colab.research.google.com/drive/1BekDqh64FU0kskSnaNrFU8HEkcdexPC3?usp=sharing)**
 
 ---
 
